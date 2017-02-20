@@ -4,9 +4,10 @@ This is a reimplementation of the captioning model described in this paper using
 
 ## Installation
 
+- Install python 3.4
 - Install [tensorflow 0.10](https://github.com/tensorflow/tensorflow/blob/r0.10/tensorflow/g3doc/get_started/os_setup.md)
 - ```pip install -r requirements.txt```
-- Set tensorflow as the keras backend in ~/.keras/keras.json:
+- Set tensorflow as the keras backend in ```~/.keras/keras.json```:
 
 ```json
 {
