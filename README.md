@@ -8,12 +8,14 @@ This is a reimplementation of the captioning model described in this paper using
 - ```pip install -r requirements.txt```
 - Set tensorflow as the keras backend in ~/.keras/keras.json:
 
+```json
 {
     "image_dim_ordering": "tf", 
     "epsilon": 1e-07, 
     "floatx": "float32", 
     "backend": "tensorflow"
 }
+```
 
 ## Data
 
