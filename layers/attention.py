@@ -1,5 +1,5 @@
 from keras import backend as K
-from keras.layers.recurrent import LSTM
+from keras.layers.recurrent import LSTM, time_distributed_dense
 from keras.engine import InputSpec
 from keras import *
 
@@ -42,6 +42,7 @@ class AttentionLSTM(LSTM):
                             'two tensors [lstm_input, attn_input].')
 
         input_shape, attn_input_shape = input_shape
+
         super().build(input_shape)
         self.input_spec.append(InputSpec(shape=attn_input_shape))
 
@@ -93,15 +94,16 @@ class AttentionLSTM(LSTM):
         # output shape is not affected by the attention component
         return super().get_output_shape_for(input_shape[0])
 
-    def compute_mask(self, input, input_mask=None):
-        if input_mask is not None:
-            input_mask = input_mask[0]
-        return super().compute_mask(input, input_mask=input_mask)
+    def compute_mask(self, input, mask=None):
+        if mask is not None:
+            mask = mask[0]
+        return super().compute_mask(input, mask=mask)
 
     def get_initial_states(self, x_input, x_attn, mask_attn):
         # set initial states from mean attention vector fed through a dense
         # activation
-        mean_attn = K.mean(x_attn * K.expand_dims(mask_attn), axis=1)
+        mean_attn = K.mean(x_attn, axis=1)
+        #mean_attn = K.mean(x_attn * K.expand_dims(mask_attn), axis=1)
         h0 = K.dot(mean_attn, self.W_init_h) + self.b_init_h
         c0 = K.dot(mean_attn, self.W_init_c) + self.b_init_c
         return [self.attn_activation(h0), self.attn_activation(c0)]
@@ -165,8 +167,11 @@ class AttentionLSTM(LSTM):
         # alignment model
         # -- keeping weight matrices for x_attn and h_s separate has the advantage
         # that the feature dimensions of the vectors can be different
+
+        #hidden state t-1. repeat to match attention shape
         h_att = K.repeat(h_tm1, attn_shape[1])
-        att = time_distributed_dense(x_attn, self.W_att, self.b_att)
+
+        att = time_distributed_dense(x_attn, self.W_att, self.b_att,output_dim=self.output_dim)
         energy = self.attn_activation(K.dot(h_att, self.U_att) + att)
         energy = K.squeeze(K.dot(energy, self.v_att), 2)
         # make probability tensor

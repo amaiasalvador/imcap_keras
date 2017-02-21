@@ -1,8 +1,10 @@
 from keras.models import Model
-from keras.layers.core import Dense, Activation, RepeatVector, Dropout
+from keras.layers.core import Dense, Activation, Flatten
+from keras.layers.core import RepeatVector, Dropout, Reshape
 from keras.layers.pooling import GlobalAveragePooling2D
 from keras.layers.wrappers import TimeDistributed
 from layers.attention import AttentionLSTM
+from keras import backend as K
 
 from args import get_parser
 
@@ -11,13 +13,21 @@ def get_base_model(args_dict):
     Loads specified pretrained convnet
     '''
 
-    input_shape = (args_dict.imsize,args_dict.imsize,3)
+    dim_ordering = K.image_dim_ordering()
+    assert dim_ordering in {'tf','th'}
+
+    if dim_ordering == 'th':
+        input_shape = (3,args_dict.imsize,args_dict.imsize)
+    else:
+        input_shape = (args_dict.imsize,args_dict.imsize,3)
+
+    assert args_dict.cnn in {'vgg16','vgg19','resnet'}
 
     if args_dict.cnn == 'vgg16':
         from keras.applications.vgg16 import VGG16 as cnn
     elif args_dict.cnn == 'vgg19':
         from keras.applications.vgg19 import VGG19 as cnn
-    elif args_dict.cnn == 'resnet50':
+    elif args_dict.cnn == 'resnet':
         from keras.applications.resnet50 import ResNet50 as cnn
 
     base_model = cnn(weights='imagenet', include_top=False,
@@ -27,25 +37,35 @@ def get_base_model(args_dict):
 
 def get_model(args_dict):
 
+    '''
+    Build the captioning model
+    '''
+
+    # get pretrained convnet
     base_model = get_base_model(args_dict)
 
     if not args_dict.cnn_train:
         for layer in base_model.layers:
             layer.trainable = False
 
+    # input to captioning model will be last conv layer
     imfeats = base_model.output
+    # context vector is initialized as the spatial average of the conv layer
     avg_feats = GlobalAveragePooling2D()(imfeats)
+    # repeat as many times as seqlen to infer output size
     avg_feats = RepeatVector(args_dict.seqlen)(avg_feats)
 
-    att_layer = AttentionLSTM(args_dict.lstm_dim,return_sequences=True)
-    hdims = att_layer([avg_feats,imfeats])
+    wh = base_model.output_shape[1] # size of conv5
+    dim = base_model.output_shape[3] # number of channels
+    # imfeats need to be "flattened" eg 15x15x512 --> 225x512
+    imfeats = Reshape((wh*wh,dim))(imfeats)
 
-    d1 = TimeDistributed(Dense(args_dict.fc_dim))(hdims)
-    d1 = Dropout(args_dict.dr_ratio)(d1)
-    d1 = Activation('relu')(d1)
+    att_lstm = AttentionLSTM(args_dict.lstm_dim,
+                              return_sequences=True)
+    hdims = att_lstm([avg_feats,imfeats])
 
-    d2 = TimeDistributed(Dense(args_dict.n_classes))(d1)
-    predictions = TimeDistributed(Activation('softmax'))(d2)
+    d1 = TimeDistributed(Dense(args_dict.n_classes))(hdims)
+    predictions = TimeDistributed(Activation('softmax'))(d1)
 
     model = Model(input=base_model.input, output=predictions)
 

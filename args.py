@@ -6,11 +6,23 @@ def get_parser():
     parser.add_argument('-cnn', dest='cnn',
                         default = 'vgg16', choices=['vgg16','vgg19','resnet'],
                         help='Pretrained CNN to use')
-    parser.add_argument('-coco_path', dest='cocodb',
+    parser.add_argument('-coco_path', dest='coco_path',
                         default = '/seq/segmentation/COCO/tools',
                         help='COCO database')
+    parser.add_argument('-year', dest='year',
+                        default = '2014',help='COCO year')
+    parser.add_argument('-resize', dest='resize',
+                        default = 256, help='Image resize',type=int)
     parser.add_argument('-imsize', dest='imsize',
-                        default = 500, help='Image resize',type=int)
+                        default = 224, help='Image crop size',type=int)
+    parser.add_argument('-vocab_size', dest='vocab_size',
+                        default = 10000, help='Vocabulary size' ,type=int)
+    parser.add_argument('-n_caps', dest='n_caps',
+                        default = 5, help='Number of captions for training',
+                        type=int)
+    parser.add_argument('-data_folder', dest='data_folder',
+                        default = '/work/asalvador/sat_keras/data/',
+                        help='save folder')
     # Model parameters
     parser.add_argument('-seqlen',dest='seqlen', default = 30,
                         help='Maximum sentence length',type=int)
