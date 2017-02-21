@@ -28,7 +28,19 @@ if not os.path.isfile(vocab_file):
 
     print ('Done.')
 
-#dataset_file = os.path.join(args_dict.data_folder,'dataset.h5')
-print ('Creating dataset...')
 dataloader = DataLoader(args_dict)
-dataloader.write_hdf5()
+dataset_file = os.path.join(args_dict.data_folder,'dataset.h5')
+
+if not os.path.isfile(dataset_file):
+    print ('Creating dataset...')
+    dataloader.write_hdf5()
+    print ("Done.")
+
+print ("Testing dataset...")
+
+train_gen = dataloader.generator('train',200)
+
+for ims,caps in train_gen:
+
+    print (np.shape(ims))
+    print (np.shape(caps))
