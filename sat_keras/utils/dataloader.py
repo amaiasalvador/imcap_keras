@@ -16,7 +16,6 @@ class DataLoader(object):
 
         self.data_folder = args_dict.data_folder
         self.coco = args_dict.coco_path
-        self.n_classes = args_dict.n_classes
         self.year = args_dict.year
         self.resize = args_dict.resize
         self.imsize = args_dict.imsize
@@ -47,19 +46,22 @@ class DataLoader(object):
 
     def word2class(self,captions):
 
-        caption_labels_set = np.zeros((self.n_caps,self.seqlen))
+        caption_cls_set = np.zeros((self.n_caps,self.seqlen,self.vocab_size + 1))
         for i in range(self.n_caps):
             caption = captions[i]
             caption = caption[:self.seqlen]
             tok_caption = nltk.word_tokenize(caption.lower())
+            tok_caption.append('<eos>')
 
+            caption_cls = np.zeros((self.seqlen,))
             for j,x in enumerate(tok_caption):
                 if x in self.vocab.keys():
-                    caption_labels_set[i,j] = self.vocab[x]
+                    caption_cls[j] = self.vocab[x]
                 else:
-                    caption_labels_set[i,j] = self.vocab_size+1 # UNK class
-
-            return caption_labels_set
+                    caption_cls[j] = self.vocab_size # UNK class
+            caption_cls = to_categorical(caption_cls,self.vocab_size + 1)
+            caption_cls_set[i] = caption_cls
+        return caption_cls_set
 
     def write_hdf5(self):
 
@@ -77,7 +79,8 @@ class DataLoader(object):
                                                   dtype=np.uint8)
                 # caption data
                 cdata = f_ds.create_dataset('caps_%s'%(part),(nims,self.n_caps,
-                                                                self.seqlen))
+                                                            self.seqlen,
+                                                            self.vocab_size + 1))
 
 
                 for i,im in tqdm(enumerate(ims)):
@@ -91,6 +94,14 @@ class DataLoader(object):
                     img = center_crop(img, self.imsize)
                     idata[i,:,:,:] = img
                     cdata[i,:,:] = caps_labels
+
+
+    def get_dataset_size(self):
+
+        train_ims, _ = self.get_anns('train')
+        val_ims, _ = self.get_anns('val')
+
+        return len(train_ims), len(val_ims)
 
     def generator(self,partition,bs):
 
@@ -115,10 +126,6 @@ class DataLoader(object):
                 batch_ims = batch_ims.astype(np.float64)
                 batch_ims = preprocess_input(batch_ims)
                 batch_caps = caps[batch_idxs,cap_id,:]
-                batch_caps = np.reshape(batch_caps,(bs*self.seqlen))
-                print (batch_caps.shape)
-                batch_caps = to_categorical(batch_caps,self.n_classes + 1)
-                batch_caps = np.reshape(batch_caps,(bs,self.seqlen,
-                                        self.n_classes + 1))
+
 
                 yield batch_ims,batch_caps

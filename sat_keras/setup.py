@@ -19,7 +19,6 @@ if not os.path.isfile(vocab_file):
     # loads training set only
     anns = load_caps(args_dict)
     words,maxlen = topK(anns,args_dict)
-
     word2class = create_dict(words)
     print (len(word2class), 'most common words selected.')
     print ('maximum sentence length',maxlen)

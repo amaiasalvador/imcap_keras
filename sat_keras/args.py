@@ -30,11 +30,21 @@ def get_parser():
                         help='Number of LSTM units',type=int)
     parser.add_argument('-fc_dim',dest='fc_dim', default = 256,
                         help='Number of FC layer units',type=int)
-    parser.add_argument('-n_classes',dest='n_classes', default = 10000,
-                        help='Number of categories (word vocab)',type=int)
     parser.add_argument('-dr_ratio',dest='dr_ratio', default = 0.5,
                         help='Dropout ratio',type=int)
 
+    # Training params
+    parser.add_argument('-bs',dest='bs', default = 256,
+                            help='Batch Size',type=int)
+    parser.add_argument('-pat',dest='pat', default = 3,
+                            help='Patience',type=int)
+    parser.add_argument('-lr',dest='lr', default = 0.01,
+                                help='Learning rate')
+    parser.add_argument('-optim',dest='optim', default = 'adam',
+                                choices=['adam','SGD','adadelta','adagrad',
+                                'rmsprop'], help='Optimizer',type=int)
+    parser.add_argument('-nepochs',dest='nepochs', default = 20,
+                        help='Number of train epochs',type=int)
     # bools
     parser.add_argument('--cnnfreeze', dest='cnn_train', action='store_false')
     parser.add_argument('--cnntrain', dest='cnn_train', action='store_true')
