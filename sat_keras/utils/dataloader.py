@@ -9,7 +9,33 @@ import pickle
 import json
 from tqdm import *
 import random
+import threading
+'''
+class threadsafe_iter:
+    """Takes an iterator/generator and makes it thread-safe by
+    serializing call to the `next` method of given iterator/generator.
+    """
+    def __init__(self, it):
+        self.it = it
+        self.lock = threading.Lock()
 
+    def __iter__(self):
+        return self
+
+    def next(self):
+        with self.lock:
+            return self.it.next()
+
+
+def threadsafe_generator(f):
+    """A decorator that takes a generator function and makes it thread-safe.
+    """
+    def g(*a, **kw):
+        return threadsafe_iter(f(*a, **kw))
+    return g
+
+@threadsafe_generator
+'''
 class DataLoader(object):
 
     def __init__(self,args_dict):
@@ -22,7 +48,7 @@ class DataLoader(object):
         self.seqlen = args_dict.seqlen
         self.n_caps = args_dict.n_caps
         self.vocab_size = args_dict.vocab_size
-        vocab_file = os.path.join(args_dict.data_folder,'vocab.pkl')
+        vocab_file = os.path.join(args_dict.data_folder,'data','vocab.pkl')
         self.vocab = pickle.load(open(vocab_file,'rb'))
 
     def get_anns(self,partition):
@@ -46,11 +72,11 @@ class DataLoader(object):
 
     def word2class(self,captions):
 
-        caption_cls_set = np.zeros((self.n_caps,self.seqlen,self.vocab_size + 1))
+        caption_cls_set = np.zeros((self.n_caps,self.seqlen))
         for i in range(self.n_caps):
             caption = captions[i]
-            caption = caption[:self.seqlen]
             tok_caption = nltk.word_tokenize(caption.lower())
+            tok_caption = tok_caption[:self.seqlen-1]
             tok_caption.append('<eos>')
 
             caption_cls = np.zeros((self.seqlen,))
@@ -59,13 +85,13 @@ class DataLoader(object):
                     caption_cls[j] = self.vocab[x]
                 else:
                     caption_cls[j] = self.vocab_size # UNK class
-            caption_cls = to_categorical(caption_cls,self.vocab_size + 1)
+
             caption_cls_set[i] = caption_cls
         return caption_cls_set
 
     def write_hdf5(self):
 
-        with h5py.File(os.path.join(self.data_folder,'dataset.h5')) as f_ds:
+        with h5py.File(os.path.join(self.data_folder,'data','dataset.h5')) as f_ds:
 
             for part in ['train','val']:
 
@@ -79,8 +105,7 @@ class DataLoader(object):
                                                   dtype=np.uint8)
                 # caption data
                 cdata = f_ds.create_dataset('caps_%s'%(part),(nims,self.n_caps,
-                                                            self.seqlen,
-                                                            self.vocab_size + 1))
+                                                            self.seqlen))
 
 
                 for i,im in tqdm(enumerate(ims)):
@@ -107,7 +132,7 @@ class DataLoader(object):
 
         imlist,_ = self.get_anns(partition)
 
-        data = h5py.File(os.path.join(self.data_folder,'dataset.h5'),'r')
+        data = h5py.File(os.path.join(self.data_folder,'data','dataset.h5'),'r')
         ims = data['ims_%s'%(partition)]
         caps = data['caps_%s'%(partition)]
 
@@ -127,5 +152,9 @@ class DataLoader(object):
                 batch_ims = preprocess_input(batch_ims)
                 batch_caps = caps[batch_idxs,cap_id,:]
 
+                batch_caps = np.reshape(batch_caps,(bs*self.seqlen))
+                batch_caps = to_categorical(batch_caps,self.vocab_size + 1)
+                batch_caps = np.reshape(batch_caps,(bs,self.seqlen,
+                                        self.vocab_size + 1))
 
                 yield batch_ims,batch_caps
