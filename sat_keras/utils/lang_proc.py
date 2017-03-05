@@ -7,6 +7,26 @@ import json
 Utilities to create word dictionary
 '''
 
+
+def preds2cap(preds,vocab):
+
+    captions = []
+    for i in range(preds.shape[0]):
+        ids = preds[i]
+        caption = []
+        for id in ids:
+            word = vocab.get(id)
+            if word:
+                caption.append(word)
+                if word == '<eos>':
+                    break
+            else:
+                caption.append('UNK')
+
+        captions.append(caption)
+
+    return captions
+
 def load_caps(args_dict):
 
     ann_file = os.path.join(args_dict.coco_path,'annotations',
