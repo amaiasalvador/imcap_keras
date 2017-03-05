@@ -3,6 +3,8 @@ import argparse
 def get_parser():
 
     parser = argparse.ArgumentParser(description='SAT_keras',epilog='The end.')
+    parser.add_argument('-model_name', dest='model_name',
+                        default = 'model',help='Name to save model')
     parser.add_argument('-cnn', dest='cnn',
                         default = 'vgg16', choices=['vgg16','vgg19','resnet'],
                         help='Pretrained CNN to use')
@@ -21,7 +23,7 @@ def get_parser():
                         default = 5, help='Number of captions for training',
                         type=int)
     parser.add_argument('-data_folder', dest='data_folder',
-                        default = '/work/asalvador/sat_keras/data/',
+                        default = '/work/asalvador/sat_keras/',
                         help='save folder')
     # Model parameters
     parser.add_argument('-seqlen',dest='seqlen', default = 30,
@@ -34,15 +36,17 @@ def get_parser():
                         help='Dropout ratio',type=int)
 
     # Training params
-    parser.add_argument('-bs',dest='bs', default = 256,
+    parser.add_argument('-seed', dest='seed',
+                        default = 4242, help='Random seed',type=int)
+    parser.add_argument('-bs',dest='bs', default = 32,
                             help='Batch Size',type=int)
     parser.add_argument('-pat',dest='pat', default = 3,
                             help='Patience',type=int)
-    parser.add_argument('-lr',dest='lr', default = 0.01,
+    parser.add_argument('-lr',dest='lr', default = 0.001,
                                 help='Learning rate')
-    parser.add_argument('-optim',dest='optim', default = 'adam',
+    parser.add_argument('-optim',dest='optim', default ='adam',
                                 choices=['adam','SGD','adadelta','adagrad',
-                                'rmsprop'], help='Optimizer',type=int)
+                                'rmsprop'], help='Optimizer')
     parser.add_argument('-nepochs',dest='nepochs', default = 20,
                         help='Number of train epochs',type=int)
     # bools

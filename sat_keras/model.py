@@ -64,7 +64,7 @@ def get_model(args_dict):
                               return_sequences=True)
     hdims = att_lstm([avg_feats,imfeats])
 
-    d1 = TimeDistributed(Dense(args_dict.n_classes))(hdims)
+    d1 = TimeDistributed(Dense(args_dict.vocab_size + 1))(hdims)
     predictions = TimeDistributed(Activation('softmax'))(d1)
 
     model = Model(input=base_model.input, output=predictions)

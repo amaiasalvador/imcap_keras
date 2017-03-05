@@ -5,6 +5,11 @@ from utils.lang_proc import *
 from utils.dataloader import DataLoader
 import os
 
+def make_dir(dir):
+    if not os.path.exists(dir):
+        print ("Creating directory",dir)
+        os.mkdir(dir)
+
 print ('Downloading nltk packages...')
 # download language resource
 nltk.download('punkt')
@@ -12,7 +17,14 @@ print ("Done.")
 
 parser = get_parser()
 args_dict = parser.parse_args()
-vocab_file = os.path.join(args_dict.data_folder,'vocab.pkl')
+
+# creating paths
+make_dir(os.path.join(args_dict.data_folder))
+make_dir(os.path.join(args_dict.data_folder,'data'))
+make_dir(os.path.join(args_dict.data_folder,'models'))
+make_dir(os.path.join(args_dict.data_folder,'history'))
+
+vocab_file = os.path.join(args_dict.data_folder,'data','vocab.pkl')
 
 if not os.path.isfile(vocab_file):
     print ('Creating word dictionary...')
@@ -28,7 +40,7 @@ if not os.path.isfile(vocab_file):
     print ('Done.')
 
 dataloader = DataLoader(args_dict)
-dataset_file = os.path.join(args_dict.data_folder,'dataset.h5')
+dataset_file = os.path.join(args_dict.data_folder,'data','dataset.h5')
 
 if not os.path.isfile(dataset_file):
     print ('Creating dataset...')
@@ -43,3 +55,4 @@ for ims,caps in train_gen:
 
     print (np.shape(ims))
     print (np.shape(caps))
+    break

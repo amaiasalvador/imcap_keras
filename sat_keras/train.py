@@ -1,38 +1,25 @@
 import numpy as np
+import os
 from model import get_model
 from keras.callbacks import EarlyStopping, ModelCheckpoint
-from args import get_args
+from args import get_parser
 from utils.dataloader import DataLoader
-from keras.optimizers import SGD, RMSprop, Adam, Adadelta, Adagrad
-np.random.seed(1337)
-
-def get_opt(args_dict):
-
-    opt_name = args_dict.optim
-    if opt_name is 'sgd':
-        opt = SGD(lr=args_dict.lr, decay=1e-6, momentum=0.9, nesterov=True)
-    elif opt_name is 'adam':
-        opt = Adam(lr=args_dict.lr)
-    elif opt_name is 'adadelta':
-        opt = Adadelta(lr=args_dict.lr)
-    elif opt_name is 'adagrad':
-        opt = Adagrad(lr=args_dict.lr)
-    elif opt_name is 'rmsprop':
-        opt = RMSprop(lr=args_dict.lr)
-    else:
-        print "Unknown optimizer! Using RMSprop by default..."
-        opt = RMSprop(lr=args_dict.lr)
-
-    return opt
+from utils.config import get_opt
+import sys
+import pickle
 
 parser = get_parser()
 args_dict = parser.parse_args()
 
+np.random.seed(args_dict.seed)
+
+sys.stdout = open(os.path.join('../logs/',args_dict.model_name+'_train.txt'),"w")
+
 # Unknowk class has weight = 0
 class_weight = {}
-for cls in range(args.n_classes+1):
+for cls in range(args_dict.vocab_size+1):
     class_weight[cls] = 1.0
-class_weight[args.n_classes] = 0.0
+class_weight[args_dict.vocab_size] = 0.1
 
 model = get_model(args_dict)
 opt = get_opt(args_dict)
@@ -43,18 +30,24 @@ dataloader = DataLoader(args_dict)
 
 N_train, N_val = dataloader.get_dataset_size()
 
-train_gen = dataloader.generator('train',args.bs)
-val_gen = dataloader.generator('val',args.bs)
+train_gen = dataloader.generator('train',args_dict.bs)
+val_gen = dataloader.generator('val',args_dict.bs)
 
 # Callbacks
-model_name = os.path.join(args_dict.data_path, 'weights.h5')
+model_name = os.path.join(args_dict.data_folder, 'models',
+                          args_dict.model_name +'_weights.h5')
 ep = EarlyStopping(monitor='val_loss', patience=args_dict.pat,
                   verbose=0, mode='auto')
-mc = ModelCheckpoint(args.data_path, monitor='val_loss', verbose=0,
+mc = ModelCheckpoint(model_name, monitor='val_loss', verbose=0,
                     save_best_only=True, mode='auto')
 
-model.fit_generator(train_gen,nb_epoch=args_dict.nepochs,
-                    samples_per_epoch=N_train,
-                    validation_data=val_gen,
-                    nb_val_samples=N_val,
-                    callbacks=[ep,mc])
+history = model.fit_generator(train_gen,nb_epoch=args_dict.nepochs,
+                            samples_per_epoch=N_train,
+                            validation_data=val_gen,
+                            nb_val_samples=N_val,
+                            callbacks=[ep,mc],
+                            verbose = 1)
+
+history_file = os.path.join(args_dict.data_folder, 'history',
+                          args_dict.model_name +'_history.pkl')
+pickle.dump(history,open(history_file,'wb'))
