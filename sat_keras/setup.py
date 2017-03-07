@@ -23,6 +23,8 @@ make_dir(os.path.join(args_dict.data_folder))
 make_dir(os.path.join(args_dict.data_folder,'data'))
 make_dir(os.path.join(args_dict.data_folder,'models'))
 make_dir(os.path.join(args_dict.data_folder,'history'))
+make_dir(os.path.join(args_dict.data_folder,'results'))
+make_dir('../logs'))
 
 vocab_file = os.path.join(args_dict.data_folder,'data','vocab.pkl')
 
