@@ -13,8 +13,7 @@ args_dict = parser.parse_args()
 model = get_model(args_dict)
 opt = get_opt(args_dict)
 
-weights = os.path.join(args_dict.data_folder, 'models',
-                          args_dict.model_name +'_weights.h5')
+weights = args.model_file
 
 model.load_weights(weights)
 
