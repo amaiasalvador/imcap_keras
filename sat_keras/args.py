@@ -4,7 +4,9 @@ def get_parser():
 
     parser = argparse.ArgumentParser(description='SAT_keras',epilog='The end.')
     parser.add_argument('-model_name', dest='model_name',
-                        default = 'model',help='Name to save model')
+                        default = 'model',help='Base name to save model')
+    parser.add_argument('-model_file', dest='model_file',
+                        default = 'model_file',help='path to model file to load.')
     parser.add_argument('-cnn', dest='cnn',
                         default = 'vgg16', choices=['vgg16','vgg19','resnet'],
                         help='Pretrained CNN to use')
@@ -60,3 +62,8 @@ def get_parser():
                             default = 10, type=int, required=True)
     '''
     return parser
+
+if __name__ =="__main__":
+
+    parser = get_parser()
+    args_dict = parser.parse_args()
