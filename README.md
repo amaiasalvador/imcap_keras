@@ -46,7 +46,7 @@ Run ```sample_captions.py``` to test the trained network on some validation imag
 ### Testing
 
 - Run ```python test.py``` to forward all validation images through a trained network and create json file with results
-- Navigate to ```./sat_keras/coco_captions/```. 
+- Navigate to ```./sat_keras/coco-captions/```. 
 - From there run: 
   ```
   python eval_caps.py -results_file results.json -ann_file gt_file
