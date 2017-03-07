@@ -35,10 +35,9 @@ This is an implementation of the captioning model described in this paper using 
 
 ## References
 
-```
-Xu, Kelvin, et al. ["Show, Attend and Tell: Neural Image Caption Generation with Visual Attention."](http://www.jmlr.org/proceedings/papers/v37/xuc15.pdf) ICML 2015.
 
-```
+Xu, Kelvin, et al. [Show, Attend and Tell: Neural Image Caption Generation with Visual Attention.](http://www.jmlr.org/proceedings/papers/v37/xuc15.pdf) ICML 2015.
+
 ## Contact
 
 amaia.salvador@upc.edu
