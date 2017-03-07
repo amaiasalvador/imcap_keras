@@ -88,4 +88,6 @@ ENV/
 # Rope project settings
 .ropeproject
 
+logs/
 *.nfs*
+
