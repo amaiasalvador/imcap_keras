@@ -11,15 +11,16 @@ import pickle
 parser = get_parser()
 args_dict = parser.parse_args()
 
+# for reproducibility
 np.random.seed(args_dict.seed)
 
 sys.stdout = open(os.path.join('../logs/',args_dict.model_name+'_train.txt'),"w")
 
-# Unknowk class has weight = 0
-class_weight = {}
-for cls in range(args_dict.vocab_size+1):
-    class_weight[cls] = 1.0
-class_weight[args_dict.vocab_size] = 0.1
+vocab_file = os.path.join(args_dict.data_folder,'data','vocab.pkl')
+vocab = pickle.load(open(vocab_file,'rb'))
+
+# Class weight iversely proportional to term frequency
+class_weight = {v['id']:v['w'] for k,v in vocab.items()}
 
 model = get_model(args_dict)
 opt = get_opt(args_dict)
@@ -35,7 +36,11 @@ val_gen = dataloader.generator('val',args_dict.bs)
 
 # Callbacks
 model_name = os.path.join(args_dict.data_folder, 'models',
-                          args_dict.model_name +'_weights.h5')
+                          args_dict.model_name
+                          +'_weights.{epoch:02d}-{val_loss:.2f}.h5',
+                          save_weights_only = True,
+                          monitor = 'val_loss')
+                          
 ep = EarlyStopping(monitor='val_loss', patience=args_dict.pat,
                   verbose=0, mode='auto')
 mc = ModelCheckpoint(model_name, monitor='val_loss', verbose=0,

@@ -10,32 +10,7 @@ import json
 from tqdm import *
 import random
 import threading
-'''
-class threadsafe_iter:
-    """Takes an iterator/generator and makes it thread-safe by
-    serializing call to the `next` method of given iterator/generator.
-    """
-    def __init__(self, it):
-        self.it = it
-        self.lock = threading.Lock()
 
-    def __iter__(self):
-        return self
-
-    def next(self):
-        with self.lock:
-            return self.it.next()
-
-
-def threadsafe_generator(f):
-    """A decorator that takes a generator function and makes it thread-safe.
-    """
-    def g(*a, **kw):
-        return threadsafe_iter(f(*a, **kw))
-    return g
-
-@threadsafe_generator
-'''
 class DataLoader(object):
 
     def __init__(self,args_dict):
@@ -71,7 +46,9 @@ class DataLoader(object):
 
 
     def word2class(self,captions):
-
+        '''
+        Formats raw captions for an image into sequence of class ids
+        '''
         caption_cls_set = np.zeros((self.n_caps,self.seqlen))
         for i in range(self.n_caps):
             caption = captions[i]
@@ -82,14 +59,18 @@ class DataLoader(object):
             caption_cls = np.zeros((self.seqlen,))
             for j,x in enumerate(tok_caption):
                 if x in self.vocab.keys():
-                    caption_cls[j] = self.vocab[x]
+                    caption_cls[j] = self.vocab[x]['id']
                 else:
-                    caption_cls[j] = self.vocab_size # UNK class
+                    caption_cls[j] = self.vocab['UNK']['id'] # UNK class
 
             caption_cls_set[i] = caption_cls
         return caption_cls_set
 
     def write_hdf5(self):
+
+        '''
+        Reads dataset (images & captions) and stores it in a HDF5 file
+        '''
 
         with h5py.File(os.path.join(self.data_folder,'data','dataset.h5')) as f_ds:
 
@@ -122,13 +103,15 @@ class DataLoader(object):
 
 
     def get_dataset_size(self):
-
+        '''
+        Returns number of training and validation samples
+        '''
         train_ims, _ = self.get_anns('train')
         val_ims, _ = self.get_anns('val')
 
         return len(train_ims), len(val_ims)
 
-    def generator(self,partition,bs):
+    def generator(self,partition,batch_size,train_flag=True):
 
         imlist,_ = self.get_anns(partition)
 
@@ -137,24 +120,45 @@ class DataLoader(object):
         caps = data['caps_%s'%(partition)]
 
         idxs = np.array(range(len(imlist)))
-        random.shuffle(idxs)
+
+        rng = int(np.ceil(len(imlist)/batch_size))
 
         while True:
 
-            for i in range(int(len(imlist)/bs)):
+            # shuffle samples every epoch
+            if train_flag:
+                random.shuffle(idxs)
 
-                cap_id = random.randint(0,self.n_caps-1)
+            for i in range(rng):
 
-                batch_idxs = np.sort(idxs[i*bs:i*bs+bs])
+                # adjust batch size at the end
+                if i*batch_size + batch_size > len(imlist):
+                    bs = len(imlist) - i*batch_size
+                    sample_ids = idxs[i*batch_size:]
+                else:
+                    bs = batch_size
+                    sample_ids = idxs[i*bs:i*bs+bs]
 
+                batch_idxs = np.sort(sample_ids)
+
+                # load images
                 batch_ims = ims[batch_idxs,:,:,:]
                 batch_ims = batch_ims.astype(np.float64)
+                # handle case where batch_size = 1
+                batch_ims = np.reshape(batch_ims,(bs,self.imsize,self.imsize,3))
                 batch_ims = preprocess_input(batch_ims)
-                batch_caps = caps[batch_idxs,cap_id,:]
 
+                # load captions
+                # random caption id out of 5 possible ones
+                cap_id = random.randint(0,self.n_caps-1)
+
+                batch_caps = caps[batch_idxs,cap_id,:]
                 batch_caps = np.reshape(batch_caps,(bs*self.seqlen))
                 batch_caps = to_categorical(batch_caps,self.vocab_size + 1)
                 batch_caps = np.reshape(batch_caps,(bs,self.seqlen,
                                         self.vocab_size + 1))
 
-                yield batch_ims,batch_caps
+                if train_flag:
+                    yield batch_ims,batch_caps
+                else:
+                    yield batch_ims,batch_caps,np.array(imlist)[batch_idxs]

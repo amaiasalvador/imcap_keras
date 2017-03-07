@@ -20,18 +20,21 @@ model.load_weights(weights)
 
 vocab_file = os.path.join(args_dict.data_folder,'data','vocab.pkl')
 vocab = pickle.load(open(vocab_file,'rb'))
-inv_vocab = {v:k for k,v in vocab.items()}
+inv_vocab = {v['id']:k for k,v in vocab.items()}
 
 model.compile(optimizer=opt,loss='categorical_crossentropy')
 
 dataloader = DataLoader(args_dict)
-val_gen = dataloader.generator('val',5)
+N = 1
+val_gen = dataloader.generator('val',batch_size=N,train_flag=False) # N samples
 
-for ims,caps in val_gen:
+for ims,caps,imids in val_gen:
     preds = model.predict(ims)
     preds = np.argmax(preds,axis=2)
     pred_caps = preds2cap(preds,inv_vocab)
     print (preds2cap(np.argmax(caps,axis=2),inv_vocab))
     print ('='*10)
     print (pred_caps)
+    print ('='*10)
+    print (imids)
     break

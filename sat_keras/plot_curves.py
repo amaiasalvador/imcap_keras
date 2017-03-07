@@ -19,8 +19,8 @@ def plot_curves_history(history):
     nb_epoch = len(history)
     t = np.arange(0, nb_epoch, 1)
 
-    plt.plot(t, history.history['loss'], 'r-*')
-    plt.plot(t, history.history['val_loss'], 'b-*')
+    plt.plot(t, history.history['loss'], 'b-*')
+    plt.plot(t, history.history['val_loss'], 'r-*')
     plt.ylabel('loss')
     plt.xlabel('epoch')
     plt.legend(['train_loss','val_loss'], loc='upper right')
@@ -66,3 +66,4 @@ if __name__ == "__main__":
     txtfile = os.path.join('../logs/',args_dict.model_name+'_train.txt')
     lines = read_lines(txtfile)
     plot_curves_parser(lines)
+    print ("Figure saved in %s"%(txtfile))

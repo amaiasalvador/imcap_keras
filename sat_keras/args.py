@@ -26,7 +26,7 @@ def get_parser():
                         default = '/work/asalvador/sat_keras/',
                         help='save folder')
     # Model parameters
-    parser.add_argument('-seqlen',dest='seqlen', default = 30,
+    parser.add_argument('-seqlen',dest='seqlen', default = 50,
                         help='Maximum sentence length',type=int)
     parser.add_argument('-lstm_dim',dest='lstm_dim', default = 256,
                         help='Number of LSTM units',type=int)

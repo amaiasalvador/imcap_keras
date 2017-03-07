@@ -52,16 +52,21 @@ def topK(anns,args_dict):
 
     fdist = nltk.FreqDist(all_words)
     topk_words = fdist.most_common(args_dict.vocab_size)
+    return topk_words, maxlen,len(all_words)
 
-    return topk_words, maxlen
-
-def create_dict(topk_words):
+def create_dict(topk_words,len_corpus):
 
     word2class = {}
 
+    n_samples = 0
+    for word in topk_words:
+        n_samples+=word[1]
+    unk_samples = len_corpus - n_samples
     p = 0
     for word in topk_words:
-        word2class[word[0]] = p
+        weight = float(n_samples)/(word[1]*len(topk_words))
+        word2class[word[0]] = {'id':p,'w':len_corpus/(word[1]*(len(topk_words)+1))}
         p+=1
+    word2class['UNK'] = {'id':p,'w':len_corpus/(unk_samples*(len(topk_words)+1))}
 
     return word2class
