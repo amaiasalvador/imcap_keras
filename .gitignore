@@ -88,6 +88,6 @@ ENV/
 # Rope project settings
 .ropeproject
 
-logs/
+sat_keras/logs/
 *.nfs*
 
