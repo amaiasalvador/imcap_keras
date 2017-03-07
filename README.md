@@ -1,6 +1,8 @@
 # Show, attend & tell in Keras
 
-This is an implementation of the captioning model described in this paper using Keras with Tensorflow backend.
+This is a Keras & Tensorflow implementation of the captioning model described in this paper:
+
+Xu, Kelvin, et al. [Show, Attend and Tell: Neural Image Caption Generation with Visual Attention.](http://www.jmlr.org/proceedings/papers/v37/xuc15.pdf) ICML 2015.
 
 ## Installation
 
@@ -18,26 +20,32 @@ This is an implementation of the captioning model described in this paper using 
 }
 ```
 
-- Install [COCO tools](https://github.com/pdollar/coco)
-
-## Data
+## Data & Pretrained model
 
 - Download [MS COCO Caption Challenge 2015 dataset](http://mscoco.org/dataset/#captions-challenge2015)
-
+- Download pretrained model [here].
 
 ## Usage
 
 ### Demo
 
+Run ```sample_captions``` to test the trained network on some validation images.
+
 ### Training
+
+- Prepare data with ```python setup.py```. 
+- Run ```python train.py```. Run ```python args.py --help``` for a list of available parameters.
 
 ### Testing
 
+- Run ```python test.py``` to forward all validation images through a trained network and create json file with results
+- Run ```python eval.py``` to get METEOR, Bleu, ROUGE_L & CIDEr scores for the previous json file with generated captions.
+
 ## References
 
-
-Xu, Kelvin, et al. [Show, Attend and Tell: Neural Image Caption Generation with Visual Attention.](http://www.jmlr.org/proceedings/papers/v37/xuc15.pdf) ICML 2015.
-
+- Xu, Kelvin, et al. [Show, Attend and Tell: Neural Image Caption Generation with Visual Attention.](http://www.jmlr.org/proceedings/papers/v37/xuc15.pdf) ICML 2015.
+- Attention LSTM implementation adapted from [this gist file](https://gist.github.com/mbollmann/ccc735366221e4dba9f89d2aab86da1e).
+- Caption evaluation code from [this repository](https://github.com/tylin/coco-caption).
 ## Contact
 
-amaia.salvador@upc.edu
+For questions and suggestions either use the issues section or send an e-mail to amaia.salvador@upc.edu.
