@@ -151,14 +151,18 @@ class DataLoader(object):
                 # load captions
                 # random caption id out of 5 possible ones
                 cap_id = random.randint(0,self.n_caps-1)
-
                 batch_caps = caps[batch_idxs,cap_id,:]
+
+                # ignore 0 samples
+                sample_weight = np.zeros((bs,self.seqlen))
+                sample_weight[batch_caps>0] = 1
+
                 batch_caps = np.reshape(batch_caps,(bs*self.seqlen))
-                batch_caps = to_categorical(batch_caps,self.vocab_size + 1)
+                batch_caps = to_categorical(batch_caps,self.vocab_size + 2)
                 batch_caps = np.reshape(batch_caps,(bs,self.seqlen,
-                                        self.vocab_size + 1))
+                                        self.vocab_size + 2))
 
                 if train_flag:
-                    yield batch_ims,batch_caps
+                    yield batch_ims,batch_caps,sample_weight
                 else:
                     yield batch_ims,batch_caps,np.array(imlist)[batch_idxs]
