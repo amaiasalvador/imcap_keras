@@ -66,4 +66,5 @@ if __name__ == "__main__":
     txtfile = os.path.join('../logs/',args_dict.model_name+'_train.txt')
     lines = read_lines(txtfile)
     plot_curves_parser(lines)
-    print ("Figure saved in %s"%(txtfile))
+    pngfile = os.path.join('../logs/',args_dict.model_name+'_curves.png')
+    print ("Figure saved in %s"%(pngfile))

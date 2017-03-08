@@ -28,7 +28,7 @@ def get_parser():
                         default = '/work/asalvador/sat_keras/',
                         help='save folder')
     # Model parameters
-    parser.add_argument('-seqlen',dest='seqlen', default = 50,
+    parser.add_argument('-seqlen',dest='seqlen', default = 20,
                         help='Maximum sentence length',type=int)
     parser.add_argument('-lstm_dim',dest='lstm_dim', default = 256,
                         help='Number of LSTM units',type=int)
@@ -42,25 +42,20 @@ def get_parser():
                         default = 4242, help='Random seed',type=int)
     parser.add_argument('-bs',dest='bs', default = 32,
                             help='Batch Size',type=int)
-    parser.add_argument('-pat',dest='pat', default = 3,
+    parser.add_argument('-pat',dest='pat', default = 5,
                             help='Patience',type=int)
     parser.add_argument('-lr',dest='lr', default = 0.001,
                                 help='Learning rate')
     parser.add_argument('-optim',dest='optim', default ='adam',
                                 choices=['adam','SGD','adadelta','adagrad',
                                 'rmsprop'], help='Optimizer')
-    parser.add_argument('-nepochs',dest='nepochs', default = 20,
+    parser.add_argument('-nepochs',dest='nepochs', default = 40,
                         help='Number of train epochs',type=int)
     # bools
     parser.add_argument('--cnnfreeze', dest='cnn_train', action='store_false')
     parser.add_argument('--cnntrain', dest='cnn_train', action='store_true')
     parser.set_defaults(cnn_train=False)
 
-    '''
-    required = parser.add_argument_group('required arguments')
-    required.add_argument('-imname', dest='imname',
-                            default = 10, type=int, required=True)
-    '''
     return parser
 
 if __name__ =="__main__":

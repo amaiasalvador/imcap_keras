@@ -44,9 +44,13 @@ def get_model(args_dict):
     # get pretrained convnet
     base_model = get_base_model(args_dict)
 
-    if not args_dict.cnn_train:
-        for layer in base_model.layers:
+
+    for layer in base_model.layers:
+        if not args_dict.cnn_train:
             layer.trainable = False
+        else:
+            if not 'block5' in layer.name and not 'block4' in layer.name:
+                layer.trainable = False
 
     # input to captioning model will be last conv layer
     imfeats = base_model.output
@@ -63,9 +67,8 @@ def get_model(args_dict):
     att_lstm = AttentionLSTM(args_dict.lstm_dim,
                               return_sequences=True)
     hdims = att_lstm([avg_feats,imfeats])
-
-    d1 = TimeDistributed(Dense(args_dict.vocab_size + 1))(hdims)
-    predictions = TimeDistributed(Activation('softmax'))(d1)
+    # + 2 because <UNK> and padded values (class 0 with 0 weight)
+    predictions = TimeDistributed(Dense(args_dict.vocab_size + 2,activation='softmax'))(hdims)
 
     model = Model(input=base_model.input, output=predictions)
 
