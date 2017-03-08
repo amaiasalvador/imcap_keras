@@ -11,6 +11,8 @@ import pickle
 parser = get_parser()
 args_dict = parser.parse_args()
 
+print (args_dict)
+print ("="*10)
 # for reproducibility
 np.random.seed(args_dict.seed)
 
@@ -21,13 +23,14 @@ vocab = pickle.load(open(vocab_file,'rb'))
 
 # Class weight iversely proportional to term frequency
 class_weight = {v['id']:v['w'] for k,v in vocab.items()}
+class_weight[0] = 0.0
 
 model = get_model(args_dict)
 opt = get_opt(args_dict)
 
 print ("Compiling model...")
 model.compile(optimizer=opt,loss='categorical_crossentropy',
-              class_weight = class_weight)
+              class_weight = class_weight,sample_weight_mode="temporal")
 
 dataloader = DataLoader(args_dict)
 
@@ -52,7 +55,3 @@ history = model.fit_generator(train_gen,nb_epoch=args_dict.nepochs,
                             nb_val_samples=N_val,
                             callbacks=[ep,mc],
                             verbose = 1)
-
-history_file = os.path.join(args_dict.data_folder, 'history',
-                          args_dict.model_name +'_history.pkl')
-pickle.dump(history,open(history_file,'wb'))

@@ -32,12 +32,11 @@ if not os.path.isfile(vocab_file):
     print ('Creating word dictionary...')
     # loads training set only
     anns = load_caps(args_dict)
-    words,maxlen,len_corpus = topK(anns,args_dict)
+    words,len_corpus = topK(anns,args_dict)
     word2class = create_dict(words,len_corpus)
     print (len(word2class), 'most common words selected.')
-    print(word2class['the'])
+    print(word2class['a'])
     print(word2class['UNK'])
-    print ('maximum sentence length',maxlen)
     with open(vocab_file,'wb') as f:
         pickle.dump(word2class,f)
 
@@ -55,7 +54,7 @@ print ("Testing dataset...")
 
 train_gen = dataloader.generator('train',200)
 
-for ims,caps in train_gen:
+for ims,caps,sw in train_gen:
 
     print (np.shape(ims))
     print (np.shape(caps))
