@@ -39,20 +39,23 @@ def topK(anns,args_dict):
 
     all_words = []
     maxlen = 0
+    avglen = 0
 
-    for ann in anns:
+    for i,ann in enumerate(anns):
         caption =ann['caption'].lower()
         tok_caption = nltk.word_tokenize(caption)
         tok_caption.append('<eos>')
 
         if len(tok_caption) > maxlen:
             maxlen = len(tok_caption)
-
+        avglen+=len(tok_caption)
         all_words.extend(tok_caption)
 
+    print('Average length:',avglen/i)
+    print('Max length:',maxlen)
     fdist = nltk.FreqDist(all_words)
     topk_words = fdist.most_common(args_dict.vocab_size)
-    return topk_words, maxlen,len(all_words)
+    return topk_words,len(all_words)
 
 def create_dict(topk_words,len_corpus):
 
@@ -62,7 +65,7 @@ def create_dict(topk_words,len_corpus):
     for word in topk_words:
         n_samples+=word[1]
     unk_samples = len_corpus - n_samples
-    p = 0
+    p = 1
     for word in topk_words:
         weight = float(n_samples)/(word[1]*len(topk_words))
         word2class[word[0]] = {'id':p,'w':len_corpus/(word[1]*(len(topk_words)+1))}
