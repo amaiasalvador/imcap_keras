@@ -1,7 +1,8 @@
 from keras.models import Model
-from keras.layers.core import Dense, Activation, Flatten
+from keras.layers.core import Dense, Activation
 from keras.layers.core import RepeatVector, Dropout, Reshape
 from keras.layers.pooling import GlobalAveragePooling2D
+from keras.layers.recurrent import LSTM
 from keras.layers.wrappers import TimeDistributed
 from layers.attention import AttentionLSTM
 from keras import backend as K
@@ -44,7 +45,6 @@ def get_model(args_dict):
     # get pretrained convnet
     base_model = get_base_model(args_dict)
 
-
     for layer in base_model.layers:
         if not args_dict.cnn_train:
             layer.trainable = False
@@ -54,20 +54,27 @@ def get_model(args_dict):
 
     # input to captioning model will be last conv layer
     imfeats = base_model.output
+    imfeats_ = Activation('relu')(imfeats)
     # context vector is initialized as the spatial average of the conv layer
-    avg_feats = GlobalAveragePooling2D()(imfeats)
+    avg_feats = GlobalAveragePooling2D()(imfeats_)
+
     # repeat as many times as seqlen to infer output size
     avg_feats = RepeatVector(args_dict.seqlen)(avg_feats)
 
-    wh = base_model.output_shape[1] # size of conv5
-    dim = base_model.output_shape[3] # number of channels
-    # imfeats need to be "flattened" eg 15x15x512 --> 225x512
-    imfeats = Reshape((wh*wh,dim))(imfeats)
+    if args_dict.attlstm:
 
-    att_lstm = AttentionLSTM(args_dict.lstm_dim,
-                              return_sequences=True)
-    hdims = att_lstm([avg_feats,imfeats])
+        wh = base_model.output_shape[1] # size of conv5
+        dim = base_model.output_shape[3] # number of channels
+        # imfeats need to be "flattened" eg 15x15x512 --> 225x512
+        imfeats = Reshape((wh*wh,dim))(imfeats)
+
+        att_lstm = AttentionLSTM(args_dict.lstm_dim,
+                                  return_sequences=True)
+        hdims = att_lstm([avg_feats,imfeats])
+    else:
+        hdims = LSTM(args_dict.lstm_dim,return_sequences=True)(avg_feats)
     # + 2 because <UNK> and padded values (class 0 with 0 weight)
+    hdims = Dropout(args_dict.dr_ratio)(hdims)
     predictions = TimeDistributed(Dense(args_dict.vocab_size + 2,activation='softmax'))(hdims)
 
     model = Model(input=base_model.input, output=predictions)
