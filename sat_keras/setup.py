@@ -35,8 +35,9 @@ if not os.path.isfile(vocab_file):
     words,len_corpus = topK(anns,args_dict)
     word2class = create_dict(words,len_corpus)
     print (len(word2class), 'most common words selected.')
-    print(word2class['a'])
-    print(word2class['UNK'])
+    print('a',word2class['a'])
+    print('unk',word2class['UNK'])
+    print('kitchen',word2class['kitchen'])
     with open(vocab_file,'wb') as f:
         pickle.dump(word2class,f)
 
