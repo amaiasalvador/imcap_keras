@@ -27,13 +27,14 @@ def get_parser():
     parser.add_argument('-data_folder', dest='data_folder',
                         default = '/work/asalvador/sat_keras/',
                         help='save folder')
+    parser.add_argument('-t',dest='temperature', default = 0.5,
+                        help='Sample temperature',type=float)
+
     # Model parameters
     parser.add_argument('-seqlen',dest='seqlen', default = 20,
                         help='Maximum sentence length',type=int)
-    parser.add_argument('-lstm_dim',dest='lstm_dim', default = 256,
+    parser.add_argument('-lstm_dim',dest='lstm_dim', default = 512,
                         help='Number of LSTM units',type=int)
-    parser.add_argument('-fc_dim',dest='fc_dim', default = 256,
-                        help='Number of FC layer units',type=int)
     parser.add_argument('-dr_ratio',dest='dr_ratio', default = 0.5,
                         help='Dropout ratio',type=int)
 
@@ -44,17 +45,23 @@ def get_parser():
                             help='Batch Size',type=int)
     parser.add_argument('-pat',dest='pat', default = 5,
                             help='Patience',type=int)
-    parser.add_argument('-lr',dest='lr', default = 0.001,
-                                help='Learning rate')
+    parser.add_argument('-lr',dest='lr', default = 0.0001,
+                                help='Learning rate',type=float)
     parser.add_argument('-optim',dest='optim', default ='adam',
                                 choices=['adam','SGD','adadelta','adagrad',
                                 'rmsprop'], help='Optimizer')
-    parser.add_argument('-nepochs',dest='nepochs', default = 40,
+    parser.add_argument('-nepochs',dest='nepochs', default = 100,
                         help='Number of train epochs',type=int)
+    parser.add_argument('-clip',dest='clip', default = 5.0,
+                        help='Gradient clipping threshold',type=float)
     # bools
     parser.add_argument('--cnnfreeze', dest='cnn_train', action='store_false')
     parser.add_argument('--cnntrain', dest='cnn_train', action='store_true')
     parser.set_defaults(cnn_train=False)
+
+    parser.add_argument('--attlstm', dest='attlstm', action='store_true')
+    parser.add_argument('--lstm', dest='attlstm', action='store_false')
+    parser.set_defaults(attlstm=True)
 
     return parser
 

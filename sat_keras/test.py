@@ -3,7 +3,7 @@ import os
 from args import get_parser
 from utils.dataloader import DataLoader
 from utils.config import get_opt
-from utils.lang_proc import preds2cap
+from utils.lang_proc import preds2cap, sample
 from model import get_model
 import pickle
 import json
@@ -30,12 +30,21 @@ val_gen = dataloader.generator('val',batch_size=args_dict.bs,train_flag=False)
 captions = []
 for ims,caps,imids in val_gen:
     preds = model.predict(ims)
-    preds = np.argmax(preds,axis=2)
-    pred_caps = preds2cap(preds,inv_vocab)
 
-    caption = ' '.join(pred_caps)
-    captions.append({"image_id":im_id,
-                     "caption": caption})
+    for i in range(preds.shape[0]): # for each sample
+        word_idxs = []
+        for j in range(preds.shape[1]): # for each word
+            # sample word idx from distribution
+            idx = sample(preds[i,j,:],temperature = args_dict.temperature)
+            word_idxs.append(idx)
+        word_idxs = np.array(word_idxs)
+
+        # predicted captions
+        pred_cap = preds2cap(word_idxs,inv_vocab)
+        caption = ' '.join(pred_cap)
+
+        captions.append({"image_id":imids[i]['id'],
+                         "caption": caption})
 
 results_file = os.path.join(args_dict.data_folder, 'results',
                           args_dict.model_name +'_gencaps.json')

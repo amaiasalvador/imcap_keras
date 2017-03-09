@@ -7,25 +7,29 @@ import json
 Utilities to create word dictionary
 '''
 
+def sample(preds, temperature=1.0):
+    # helper function to sample an index from a probability array
+    preds = np.asarray(preds).astype('float64')
+    preds = np.log(preds) / temperature
+    exp_preds = np.exp(preds)
+    preds = exp_preds / np.sum(exp_preds)
+    probas = np.random.multinomial(1, preds, 1)
+    return np.argmax(probas)
 
 def preds2cap(preds,vocab):
 
-    captions = []
+    caption = []
     for i in range(preds.shape[0]):
-        ids = preds[i]
-        caption = []
-        for id in ids:
-            word = vocab.get(id)
-            if word:
-                caption.append(word)
-                if word == '<eos>':
-                    break
-            else:
-                caption.append('UNK')
 
-        captions.append(caption)
+        word = vocab.get(preds[i])
+        if word:
+            caption.append(word)
+            if word == '<eos>':
+                break
+        else:
+            caption.append('UNK')
 
-    return captions
+    return caption
 
 def load_caps(args_dict):
 
@@ -67,9 +71,13 @@ def create_dict(topk_words,len_corpus):
     unk_samples = len_corpus - n_samples
     p = 1
     for word in topk_words:
-        weight = float(n_samples)/(word[1]*len(topk_words))
-        word2class[word[0]] = {'id':p,'w':len_corpus/(word[1]*(len(topk_words)+1))}
-        p+=1
-    word2class['UNK'] = {'id':p,'w':len_corpus/(unk_samples*(len(topk_words)+1))}
+        weight = float(len_corpus)/(word[1]*(len(topk_words)+2))
 
+        word2class[word[0]] = {'id':p,'w':weight}
+        p+=1
+    word2class['UNK'] = {'id':p,'w':len_corpus/(unk_samples*(len(topk_words)+2))}
+    sc = 0
+    for k,v in word2class.items():
+        sc+= v['w']
+    print (sc)
     return word2class
