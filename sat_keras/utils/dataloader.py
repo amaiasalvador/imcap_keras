@@ -58,8 +58,9 @@ class DataLoader(object):
 
             caption_cls = np.zeros((self.seqlen,))
             for j,x in enumerate(tok_caption):
-                if x in self.vocab.keys():
-                    caption_cls[j] = self.vocab[x]['id']
+                word = self.vocab.get(x)
+                if word:
+                    caption_cls[j] = word['id']
                 else:
                     caption_cls[j] = self.vocab['UNK']['id'] # UNK class
 
@@ -150,14 +151,16 @@ class DataLoader(object):
 
                 # load captions
                 # random caption id out of 5 possible ones
-                cap_id = random.randint(0,self.n_caps-1)
+                if train_flag:
+                    cap_id = random.randint(0,self.n_caps-1)
+                else:
+                    cap_id = 0
                 batch_caps = caps[batch_idxs,cap_id,:]
 
                 # ignore 0 samples
                 sample_weight = np.zeros((bs,self.seqlen))
                 sample_weight[batch_caps>0] = 1
 
-                batch_caps = np.reshape(batch_caps,(bs*self.seqlen))
                 batch_caps = to_categorical(batch_caps,self.vocab_size + 2)
                 batch_caps = np.reshape(batch_caps,(bs,self.seqlen,
                                         self.vocab_size + 2))

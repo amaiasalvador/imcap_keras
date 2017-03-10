@@ -14,7 +14,7 @@ args_dict = parser.parse_args()
 model = get_model(args_dict)
 opt = get_opt(args_dict)
 
-weights = args.model_file
+weights = args_dict.model_file
 
 model.load_weights(weights)
 
@@ -26,8 +26,10 @@ model.compile(optimizer=opt,loss='categorical_crossentropy')
 
 dataloader = DataLoader(args_dict)
 val_gen = dataloader.generator('val',batch_size=args_dict.bs,train_flag=False)
+N_train, N_val = dataloader.get_dataset_size()
 
 captions = []
+num_samples = 0
 for ims,caps,imids in val_gen:
     preds = model.predict(ims)
 
@@ -45,6 +47,10 @@ for ims,caps,imids in val_gen:
 
         captions.append({"image_id":imids[i]['id'],
                          "caption": caption})
+        num_samples+=1
+
+    if num_samples == N_val:
+        break
 
 results_file = os.path.join(args_dict.data_folder, 'results',
                           args_dict.model_name +'_gencaps.json')

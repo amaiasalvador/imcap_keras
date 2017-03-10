@@ -23,7 +23,7 @@ inv_vocab = {v['id']:k for k,v in vocab.items()}
 model.compile(optimizer=opt,loss='categorical_crossentropy')
 
 dataloader = DataLoader(args_dict)
-N = 10
+N = 20
 val_gen = dataloader.generator('val',batch_size=N,train_flag=False) # N samples
 
 for ims,caps,imids in val_gen:
@@ -42,10 +42,11 @@ for ims,caps,imids in val_gen:
         # predicted captions
         pred_cap = preds2cap(word_idxs,inv_vocab)
         pred_cap = ' '.join(pred_cap)
-        true_cap = preds2cap(np.argmax(caps[i],axis=1),inv_vocab)
+        true_cap = preds2cap(np.argmax(caps[i],axis=-1),inv_vocab)
         true_cap = ' '.join(true_cap)
+
         # true captions
-        print ("ID:", imids[i]['id'])
+        print ("ID:", imids[i]['file_name'])
         print ("True:", true_cap)
         print ("Gen:", pred_cap)
         print ("-"*10)

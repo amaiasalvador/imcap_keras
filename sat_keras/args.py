@@ -52,7 +52,7 @@ def get_parser():
                                 'rmsprop'], help='Optimizer')
     parser.add_argument('-nepochs',dest='nepochs', default = 100,
                         help='Number of train epochs',type=int)
-    parser.add_argument('-clip',dest='clip', default = 5.0,
+    parser.add_argument('-clip',dest='clip', default = 0.5,
                         help='Gradient clipping threshold',type=float)
     # bools
     parser.add_argument('--cnnfreeze', dest='cnn_train', action='store_false')

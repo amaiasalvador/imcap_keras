@@ -48,6 +48,7 @@ def topK(anns,args_dict):
     for i,ann in enumerate(anns):
         caption =ann['caption'].lower()
         tok_caption = nltk.word_tokenize(caption)
+
         tok_caption.append('<eos>')
 
         if len(tok_caption) > maxlen:
@@ -69,6 +70,7 @@ def create_dict(topk_words,len_corpus):
     for word in topk_words:
         n_samples+=word[1]
     unk_samples = len_corpus - n_samples
+
     p = 1
     for word in topk_words:
         weight = float(len_corpus)/(word[1]*(len(topk_words)+2))
@@ -76,8 +78,5 @@ def create_dict(topk_words,len_corpus):
         word2class[word[0]] = {'id':p,'w':weight}
         p+=1
     word2class['UNK'] = {'id':p,'w':len_corpus/(unk_samples*(len(topk_words)+2))}
-    sc = 0
-    for k,v in word2class.items():
-        sc+= v['w']
-    print (sc)
+    
     return word2class
