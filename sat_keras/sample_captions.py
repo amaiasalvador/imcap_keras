@@ -24,7 +24,7 @@ model.compile(optimizer=opt,loss='categorical_crossentropy')
 
 dataloader = DataLoader(args_dict)
 N = 20
-val_gen = dataloader.generator('val',batch_size=N,train_flag=False) # N samples
+val_gen = dataloader.generator('train',batch_size=N,train_flag=False) # N samples
 
 for ims,caps,imids in val_gen:
 

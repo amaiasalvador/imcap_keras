@@ -27,7 +27,7 @@ def get_parser():
     parser.add_argument('-data_folder', dest='data_folder',
                         default = '/work/asalvador/sat_keras/',
                         help='save folder')
-    parser.add_argument('-t',dest='temperature', default = 0.5,
+    parser.add_argument('-t',dest='temperature', default = 1.0,
                         help='Sample temperature',type=float)
 
     # Model parameters
@@ -50,9 +50,9 @@ def get_parser():
     parser.add_argument('-optim',dest='optim', default ='adam',
                                 choices=['adam','SGD','adadelta','adagrad',
                                 'rmsprop'], help='Optimizer')
-    parser.add_argument('-nepochs',dest='nepochs', default = 100,
+    parser.add_argument('-nepochs',dest='nepochs', default = 75,
                         help='Number of train epochs',type=int)
-    parser.add_argument('-clip',dest='clip', default = 0.5,
+    parser.add_argument('-clip',dest='clip', default = -1,
                         help='Gradient clipping threshold',type=float)
     # bools
     parser.add_argument('--cnnfreeze', dest='cnn_train', action='store_false')
