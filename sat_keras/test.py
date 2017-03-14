@@ -11,6 +11,8 @@ import json
 parser = get_parser()
 args_dict = parser.parse_args()
 
+args_dict.mode = 'test'
+
 model = get_model(args_dict)
 opt = get_opt(args_dict)
 

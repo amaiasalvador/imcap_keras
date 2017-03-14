@@ -22,11 +22,11 @@ sys.stdout = open(os.path.join('../logs/',args_dict.model_name+'_train.txt'),"w"
 vocab_file = os.path.join(args_dict.data_folder,'data','vocab.pkl')
 vocab = pickle.load(open(vocab_file,'rb'))
 
-'''
-# Class weight iversely proportional to term frequency
+
+# Class weight iversely proportional to term frequency - not used atm
 class_weight = {v['id']:v['w'] for k,v in vocab.items()}
 class_weight[0] = 0.0
-'''
+
 model = get_model(args_dict)
 opt = get_opt(args_dict)
 
@@ -60,5 +60,5 @@ history = model.fit_generator(train_gen,nb_epoch=args_dict.nepochs,
                             samples_per_epoch=N_train,
                             validation_data=val_gen,
                             nb_val_samples=N_val,
-                            callbacks=[mc,ep],
+                            callbacks=[mc,ep,rs],
                             verbose = 1)
