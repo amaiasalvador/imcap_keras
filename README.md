@@ -1,18 +1,13 @@
-# Show, attend & tell in Keras
+# Image Captioning with Spatial Attention in Keras
 
-This is a Keras & Tensorflow implementation of the captioning model described in this paper:
+This is a Keras & Tensorflow implementation of a captioning model similar to the one described in:
 
 Xu, Kelvin, et al. [Show, Attend and Tell: Neural Image Caption Generation with Visual Attention.](http://www.jmlr.org/proceedings/papers/v37/xuc15.pdf) ICML 2015.
 
 ## Installation
 
-- Install [python 3.x](https://www.python.org/) or use virtualenv ```virtualenv -p python3 venv```
-- Install [tensorflow 0.10](https://github.com/tensorflow/tensorflow/blob/r0.10/tensorflow/g3doc/get_started/os_setup.md)
-
-``` shell
-export TF_BINARY_URL=https://storage.googleapis.com/tensorflow/linux/gpu/tensorflow-0.10.0-cp34-cp34m-linux_x86_64.whl
-pip install --upgrade $TF_BINARY_URL
-```
+- Install [python 2.7](https://www.python.org/).
+- Install [tensorflow 0.12](https://github.com/tensorflow/tensorflow/blob/r0.12/tensorflow/g3doc/get_started/os_setup.md).
 - ```pip install -r requirements.txt```
 - Set tensorflow as the keras backend in ```~/.keras/keras.json```:
 
@@ -28,7 +23,7 @@ pip install --upgrade $TF_BINARY_URL
 ## Data & Pretrained model
 
 - Download [MS COCO Caption Challenge 2015 dataset](http://mscoco.org/dataset/#captions-challenge2015)
-- Download pretrained model [here]().
+- [When available] Download pretrained model [here]().
 
 ## Usage
 
