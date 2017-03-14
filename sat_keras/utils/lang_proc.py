@@ -4,7 +4,7 @@ import os
 import json
 
 '''
-Utilities to create word dictionary
+Utilities to create word dictionary & generate captions
 '''
 
 def sample(preds, temperature=1.0):
@@ -16,20 +16,22 @@ def sample(preds, temperature=1.0):
     probas = np.random.multinomial(1, preds, 1)
     return np.argmax(probas)
 
-def preds2cap(preds,vocab):
+def idx2word(idxs,vocab):
 
-    caption = []
-    for i in range(preds.shape[0]):
+    captions = []
+    for i in range(idxs.shape[0]): # for all images
+        for j in range(idxs.shape[1]):
+            caption = []
+            word = vocab.get(preds[i])
+            if word:
+                caption.append(word)
+                if word == '<eos>':
+                    break
+            else:
+                caption.append('UNK')
+        captions.append(caption)
 
-        word = vocab.get(preds[i])
-        if word:
-            caption.append(word)
-            if word == '<eos>':
-                break
-        else:
-            caption.append('UNK')
-
-    return caption
+    return captions
 
 def load_caps(args_dict):
 
@@ -78,5 +80,5 @@ def create_dict(topk_words,len_corpus):
         word2class[word[0]] = {'id':p,'w':weight}
         p+=1
     word2class['UNK'] = {'id':p,'w':len_corpus/(unk_samples*(len(topk_words)+2))}
-    
+
     return word2class

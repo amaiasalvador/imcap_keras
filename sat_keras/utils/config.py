@@ -1,5 +1,5 @@
 from keras.optimizers import SGD, RMSprop, Adam, Adadelta, Adagrad
-
+from keras.callbacks import Callback
 
 def get_opt(args_dict):
 
@@ -20,3 +20,7 @@ def get_opt(args_dict):
         opt = Adam(lr=args_dict.lr,clipvalue = args_dict.clip)
 
     return opt
+
+class ResetStatesCallback(Callback):
+    def on_batch_end(self, batch, logs={}):
+        self.model.reset_states()

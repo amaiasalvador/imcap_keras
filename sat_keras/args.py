@@ -3,6 +3,9 @@ import argparse
 def get_parser():
 
     parser = argparse.ArgumentParser(description='SAT_keras',epilog='The end.')
+    parser.add_argument('-mode', dest='mode',
+                        default = 'train',choices=['train','test'],
+                        help='Model mode')
     parser.add_argument('-model_name', dest='model_name',
                         default = 'model',help='Base name to save model')
     parser.add_argument('-model_file', dest='model_file',
@@ -35,6 +38,10 @@ def get_parser():
                         help='Maximum sentence length',type=int)
     parser.add_argument('-lstm_dim',dest='lstm_dim', default = 512,
                         help='Number of LSTM units',type=int)
+    parser.add_argument('-emb_dim',dest='emb_dim', default = 100,
+                        help='Word embedding dim',type=int)
+    parser.add_argument('-z_dim',dest='z_dim', default = 256,
+                        help='Dimensionality of z space',type=int)
     parser.add_argument('-dr_ratio',dest='dr_ratio', default = 0.5,
                         help='Dropout ratio',type=int)
 

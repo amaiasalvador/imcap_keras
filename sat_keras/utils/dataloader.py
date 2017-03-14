@@ -122,7 +122,7 @@ class DataLoader(object):
 
         idxs = np.array(range(len(imlist)))
 
-        rng = int(np.ceil(len(imlist)/batch_size))
+        rng = int(np.floor(len(imlist)/batch_size))
 
         while True:
 
@@ -157,6 +157,8 @@ class DataLoader(object):
                     cap_id = 0
                 batch_caps = caps[batch_idxs,cap_id,:]
 
+                prev_caps = np.zeros((bs,self.seqlen))
+                prev_caps[1:] = batch_caps[:-1]
                 # ignore 0 samples
                 sample_weight = np.zeros((bs,self.seqlen))
                 sample_weight[batch_caps>0] = 1
@@ -166,6 +168,6 @@ class DataLoader(object):
                                         self.vocab_size + 2))
 
                 if train_flag:
-                    yield batch_ims,batch_caps,sample_weight
+                    yield [batch_ims,prev_caps],batch_caps,sample_weight
                 else:
                     yield batch_ims,batch_caps,np.array(imlist)[batch_idxs]
