@@ -2,7 +2,11 @@
 
 This is a Keras & Tensorflow implementation of a captioning model. In particular, it uses the attention model described in [this](https://arxiv.org/abs/1612.01887) paper, which is depicted below:
 
-![Attention Model](figs/attmodel.png)
+
+<p align="center">
+  <img src="figs/attmodel.png">
+</p>
+
 
 ## Installation
 
@@ -50,8 +54,8 @@ Run ```sample_captions.py``` to test the trained network on some validation imag
 
 ## References
 
-- Xu, Kelvin, et al. [Show, Attend and Tell: Neural Image Caption Generation with Visual Attention.](http://www.jmlr.org/proceedings/papers/v37/xuc15.pdf) ICML 2015.
-- Attention LSTM implementation adapted from [this gist file](https://gist.github.com/mbollmann/ccc735366221e4dba9f89d2aab86da1e).
+- Xu et al. [Show, Attend and Tell: Neural Image Caption Generation with Visual Attention.](http://www.jmlr.org/proceedings/papers/v37/xuc15.pdf) ICML 2015.
+- Lu et al. [Knowing When to Look: Adaptive Attention via A Visual Sentinel for Image Captioning](https://arxiv.org/abs/1612.01887)
 - Caption evaluation code from [this repository](https://github.com/tylin/coco-caption).
 
 ## Contact
