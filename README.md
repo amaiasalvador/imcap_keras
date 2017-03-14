@@ -1,8 +1,8 @@
 # Image Captioning with Spatial Attention in Keras
 
-This is a Keras & Tensorflow implementation of a captioning model similar to the one described in:
+This is a Keras & Tensorflow implementation of a captioning model. In particular, it uses the attention model described in [this](https://arxiv.org/abs/1612.01887) paper, which is depicted below:
 
-Xu, Kelvin, et al. [Show, Attend and Tell: Neural Image Caption Generation with Visual Attention.](http://www.jmlr.org/proceedings/papers/v37/xuc15.pdf) ICML 2015.
+![Attention Model](figs/attmodel.png)
 
 ## Installation
 
