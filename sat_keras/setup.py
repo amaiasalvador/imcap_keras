@@ -26,17 +26,16 @@ make_dir(os.path.join(args_dict.data_folder,'history'))
 make_dir(os.path.join(args_dict.data_folder,'results'))
 make_dir('../logs')
 
-vocab_file = os.path.join(args_dict.data_folder,'data','vocab.pkl')
+vocab_file = os.path.join(args_dict.data_folder,'data',args_dict.vfile)
 
 if not os.path.isfile(vocab_file):
     print ('Creating word dictionary...')
     # loads training set only
     anns = load_caps(args_dict)
-    words,len_corpus = topK(anns,args_dict)
-    word2class = create_dict(words,len_corpus)
+    words = topK(anns,args_dict)
+    word2class = create_dict(words)
     print (len(word2class), 'most common words selected.')
     print('a',word2class['a'])
-    print('unk',word2class['UNK'])
     print('kitchen',word2class['kitchen'])
     with open(vocab_file,'wb') as f:
         pickle.dump(word2class,f)
@@ -44,7 +43,7 @@ if not os.path.isfile(vocab_file):
     print ('Done.')
 
 dataloader = DataLoader(args_dict)
-dataset_file = os.path.join(args_dict.data_folder,'data','dataset.h5')
+dataset_file = os.path.join(args_dict.data_folder,'data',args_dict.h5file)
 
 if not os.path.isfile(dataset_file):
     print ('Creating dataset...')

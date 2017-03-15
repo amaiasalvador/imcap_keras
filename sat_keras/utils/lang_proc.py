@@ -20,15 +20,15 @@ def idx2word(idxs,vocab):
 
     captions = []
     for i in range(idxs.shape[0]): # for all images
+        caption = []
         for j in range(idxs.shape[1]):
-            caption = []
-            word = vocab.get(preds[i])
+            word = vocab.get(idxs[i,j])
             if word:
                 caption.append(word)
                 if word == '<eos>':
                     break
             else:
-                caption.append('UNK')
+                caption.append('<unk>')
         captions.append(caption)
 
     return captions
@@ -51,8 +51,6 @@ def topK(anns,args_dict):
         caption =ann['caption'].lower()
         tok_caption = nltk.word_tokenize(caption)
 
-        tok_caption.append('<eos>')
-
         if len(tok_caption) > maxlen:
             maxlen = len(tok_caption)
         avglen+=len(tok_caption)
@@ -62,23 +60,15 @@ def topK(anns,args_dict):
     print('Max length:',maxlen)
     fdist = nltk.FreqDist(all_words)
     topk_words = fdist.most_common(args_dict.vocab_size)
-    return topk_words,len(all_words)
+    return topk_words
 
-def create_dict(topk_words,len_corpus):
+def create_dict(topk_words):
 
-    word2class = {}
+    word2class = {'<start>':1,'<eos>':2,'<unk>':3}
 
-    n_samples = 0
+    p = 4
     for word in topk_words:
-        n_samples+=word[1]
-    unk_samples = len_corpus - n_samples
-
-    p = 1
-    for word in topk_words:
-        weight = float(len_corpus)/(word[1]*(len(topk_words)+2))
-
-        word2class[word[0]] = {'id':p,'w':weight}
+        word2class[word[0]] = p
         p+=1
-    word2class['UNK'] = {'id':p,'w':len_corpus/(unk_samples*(len(topk_words)+2))}
 
     return word2class

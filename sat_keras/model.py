@@ -52,7 +52,7 @@ def get_model(args_dict):
     # get pretrained convnet
     base_model = get_base_model(args_dict)
 
-    num_classes = args_dict.vocab_size + 2
+    num_classes = args_dict.vocab_size + 4
     wh = base_model.output_shape[1] # size of conv5
     dim = base_model.output_shape[3] # number of channels
 
@@ -67,6 +67,8 @@ def get_model(args_dict):
     prev_words = Input(batch_shape=(args_dict.bs,seqlen))
 
     imfeats = base_model(im)
+    imfeats = Activation('relu')(imfeats)
+    imfeats = Dropout(args_dict.dr_ratio)(imfeats)
     # input is the average of conv feats
     avg_feats = GlobalAveragePooling2D()(imfeats)
 
@@ -75,6 +77,9 @@ def get_model(args_dict):
 
     wemb = Embedding(num_classes,args_dict.emb_dim,input_length = seqlen)
     emb = wemb(prev_words)
+    emb = Activation('relu')(emb)
+    emb = Dropout(args_dict.dr_ratio)(emb)
+
     x = Merge(mode='concat')([x,emb])
 
     in_lstm = (args_dict.bs,seqlen,args_dict.emb_dim + dim)
@@ -82,7 +87,6 @@ def get_model(args_dict):
     h = LSTM(args_dict.lstm_dim,return_sequences=True,stateful=True)(x) # seqlen,lstm_dim
     #h = LSTM(args_dict.lstm_dim,return_sequences=True)(x) # seqlen,lstm_dim
     if args_dict.attlstm:
-
 
         # imfeats need to be "flattened" eg 15x15x512 --> 225x512
         V = Reshape((wh*wh,dim))(imfeats) # 225x512
@@ -95,11 +99,10 @@ def get_model(args_dict):
         z_v = Permute((2,1,3))(z_v) # seqlen,225,z_dim
 
         # map h vectors (of all timesteps) to z space
-        z_h = TimeDistributed(Dense(args_dict.z_dim))(h) # seqlen,z_dim
+        z_h = TimeDistributed(Dense(args_dict.z_dim,activation='relu'))(h) # seqlen,z_dim
 
         # repeat all h vectors as many times as v features
         z_h = TimeDistributed(RepeatVector(wh*wh))(z_h) # seqlen,225,z_dim
-
 
         # sum outputs from z_v and z_h
         z = Merge(mode='sum')([z_h,z_v]) # seqlen,225,z_dim
@@ -123,6 +126,7 @@ def get_model(args_dict):
 
         h = Merge(mode='sum')([h,c_vec])
 
+    h = Dropout(args_dict.dr_ratio)(h)
     predictions = TimeDistributed(Dense(num_classes,activation='softmax'))(h)
 
     model = Model(input=[im,prev_words], output=predictions)
