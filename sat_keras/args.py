@@ -6,6 +6,10 @@ def get_parser():
     parser.add_argument('-mode', dest='mode',
                         default = 'train',choices=['train','test'],
                         help='Model mode')
+    parser.add_argument('-num_val',dest='num_val', default = 5000,
+                        help='Number of validation images',type=int)
+    parser.add_argument('-num_test',dest='num_test', default = 5000,
+                        help='Number of test images',type=int)
     parser.add_argument('-model_name', dest='model_name',
                         default = 'model',help='Base name to save model')
     parser.add_argument('-model_file', dest='model_file',
@@ -18,6 +22,12 @@ def get_parser():
                         help='COCO database')
     parser.add_argument('-year', dest='year',
                         default = '2014',help='COCO year')
+    parser.add_argument('-h5file', dest='h5file',
+                        default = 'datasetv2.h5',
+                        help='name of hdf5 file (with extension)')
+    parser.add_argument('-vfile', dest='vfile',
+                        default = 'vocab2.pkl',
+                        help='name of vocab file (with extension)')
     parser.add_argument('-resize', dest='resize',
                         default = 256, help='Image resize',type=int)
     parser.add_argument('-imsize', dest='imsize',
