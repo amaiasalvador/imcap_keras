@@ -19,18 +19,9 @@ np.random.seed(args_dict.seed)
 
 sys.stdout = open(os.path.join('../logs/',args_dict.model_name+'_train.txt'),"w")
 
-vocab_file = os.path.join(args_dict.data_folder,'data','vocab.pkl')
-vocab = pickle.load(open(vocab_file,'rb'))
-
-
-# Class weight iversely proportional to term frequency - not used atm
-class_weight = {v['id']:v['w'] for k,v in vocab.items()}
-class_weight[0] = 0.0
-
 model = get_model(args_dict)
 opt = get_opt(args_dict)
 
-print ("Compiling model...")
 model.compile(optimizer=opt,loss='categorical_crossentropy',
               sample_weight_mode="temporal")
 
@@ -54,8 +45,6 @@ mc = ModelCheckpoint(model_name, monitor='val_loss', verbose=0,
 
 # reset states after each batch
 rs = ResetStatesCallback()
-
-print ("Training...")
 history = model.fit_generator(train_gen,nb_epoch=args_dict.nepochs,
                             samples_per_epoch=N_train,
                             validation_data=val_gen,
