@@ -13,6 +13,7 @@ def make_dir(dir):
 print ('Downloading nltk packages...')
 # download language resource
 nltk.download('punkt')
+nltk.download('wordnet')
 print ("Done.")
 
 parser = get_parser()

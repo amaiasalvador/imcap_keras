@@ -7,6 +7,12 @@ import json
 Utilities to create word dictionary & generate captions
 '''
 
+def lemmatize_sentence(sentence):
+    lem = []
+    for word in sentence:
+        lem.append(nltk.stem.WordNetLemmatizer().lemmatize(word))
+    return lem
+
 def sample(preds, temperature=1.0):
     # helper function to sample an index from a probability array
     preds = np.asarray(preds).astype('float64')
