@@ -53,12 +53,11 @@ if not os.path.isfile(dataset_file):
 
 print ("Testing dataset...")
 
-train_gen = dataloader.generator('train',200)
+train_gen = dataloader.generator('train',10)
 
 for [ims,prev_cap],caps,sw in train_gen:
 
-    print (np.shape(ims))
-    print (np.shape(caps))
-    print (np.shape(prev_cap))
-    print (prev_cap[1])
+    print ("images",np.shape(ims))
+    print ("captions (onehot)",np.shape(caps))
+    print ("prev words (idx)",np.shape(prev_cap))
     break

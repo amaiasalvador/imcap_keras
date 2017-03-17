@@ -59,7 +59,7 @@ def get_parser():
     # Training params
     parser.add_argument('-seed', dest='seed',
                         default = 4242, help='Random seed',type=int)
-    parser.add_argument('-bs',dest='bs', default = 64,
+    parser.add_argument('-bs',dest='bs', default = 128,
                             help='Batch Size',type=int)
     parser.add_argument('-optim',dest='optim', default ='adam',
                                 choices=['adam','SGD','adadelta','adagrad',
@@ -70,7 +70,7 @@ def get_parser():
                                 help='LR decay',type=float)
     parser.add_argument('-clip',dest='clip', default = 5.0,
                         help='Gradient clipping threshold (value)',type=float)
-    parser.add_argument('-nepochs',dest='nepochs', default = 20,
+    parser.add_argument('-nepochs',dest='nepochs', default = 80,
                         help='Number of train epochs',type=int)
     parser.add_argument('-pat',dest='pat', default = 10,
                             help='Patience',type=int)
