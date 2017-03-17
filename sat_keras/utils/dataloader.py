@@ -223,12 +223,13 @@ class DataLoader(object):
                     cap_id = random.randint(0,self.n_caps-1)
                 else:
                     cap_id = 0
-                batch_caps = caps[batch_idxs,cap_id,:]
+                prev_caps = caps[batch_idxs,cap_id,:]
+                prev_caps = np.reshape(prev_caps,(bs,self.seqlen))
 
                 # vector of previous words is simply a shifted version of
                 # current words vector
-                prev_caps = np.zeros((bs,self.seqlen))
-                prev_caps[1:] = batch_caps[:-1]
+                batch_caps = np.zeros((bs,self.seqlen))
+                batch_caps[:,:-1] = prev_caps[:,1:]
 
                 # words with 0 id are padded out
                 sample_weight = np.zeros((bs,self.seqlen))
