@@ -3,7 +3,7 @@ import os
 from args import get_parser
 from utils.dataloader import DataLoader
 from utils.config import get_opt
-from utils.lang_proc import idx2word, sample
+from utils.lang_proc import idx2word, sample, beamsearch
 from model import get_model
 import pickle
 
@@ -25,11 +25,12 @@ model.compile(optimizer=opt,loss='categorical_crossentropy')
 
 dataloader = DataLoader(args_dict)
 N = args_dict.bs
-val_gen = dataloader.generator('val',batch_size=N,train_flag=False) # N samples
+val_gen = dataloader.generator('val',batch_size=args_dict.bs,train_flag=False) # N samples
 
 for ims,caps,imids in val_gen:
 
-    prevs = np.zeros((N,1))
+    # greedy caps
+    prevs = np.ones((N,1))
     word_idxs = np.zeros((N,args_dict.seqlen))
 
     for i in range(args_dict.seqlen):
@@ -39,6 +40,7 @@ for ims,caps,imids in val_gen:
 
         word_idxs[:,i] = np.argmax(preds,axis=-1)
         prevs = np.argmax(preds,axis=-1)
+        prevs = np.reshape(prevs,(N,1))
 
     pred_caps = idx2word(word_idxs,inv_vocab)
     true_caps = idx2word(np.argmax(caps,axis=-1),inv_vocab)
@@ -55,4 +57,25 @@ for ims,caps,imids in val_gen:
         print ("-"*10)
 
     model.reset_states()
-    break
+    '''
+    ### beam search caps ###
+    seqs,scores = beamsearch(model,ims)
+    top_N = 10
+    top_10 = np.argsort(np.array(scores))[::-1][:top_N]
+    top_caps = np.array(seqs)[top_10]
+
+    pred_caps = idx2word(top_caps,inv_vocab)
+    true_caps = idx2word(np.argmax(caps,axis=-1),inv_vocab)
+
+    # true caption
+    print ("ID:", imids[0]['file_name'])
+    true_cap = ' '.join(true_caps[0])
+    print ("True:", true_cap)
+
+    for i in range(top_N):
+        pred_cap = ' '.join(pred_caps[i])
+        print ("Gen:", pred_cap)
+        print ("-"*10)
+    print "="*10
+    model.reset_states()
+    '''
