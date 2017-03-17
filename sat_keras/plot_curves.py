@@ -34,10 +34,10 @@ def plot_curves_parser(lines):
     for line in lines:
         if 'val_loss' in line:
             sp = line.split(' - ')
-            tr = sp[2].split('loss: ')[1]
+            tr = sp[-2].split('loss: ')[1]
             tr = float(tr.rstrip())
 
-            va = sp[3].split('val_loss: ')[1]
+            va = sp[-1].split('val_loss: ')[1]
             va = float(va.rstrip())
 
             train_loss.append(tr)
