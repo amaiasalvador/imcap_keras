@@ -3,58 +3,92 @@ import os
 from args import get_parser
 from utils.dataloader import DataLoader
 from utils.config import get_opt
-from utils.lang_proc import preds2cap, sample
+from utils.lang_proc import idx2word, sample, beamsearch
 from model import get_model
 import pickle
 import json
 
 parser = get_parser()
 args_dict = parser.parse_args()
-
 args_dict.mode = 'test'
 
 model = get_model(args_dict)
 opt = get_opt(args_dict)
 
 weights = args_dict.model_file
-
 model.load_weights(weights)
 
-vocab_file = os.path.join(args_dict.data_folder,'data','vocab.pkl')
+vocab_file = os.path.join(args_dict.data_folder,'data',args_dict.vfile)
 vocab = pickle.load(open(vocab_file,'rb'))
-inv_vocab = {v['id']:k for k,v in vocab.items()}
+inv_vocab = {v:k for k,v in vocab.items()}
 
 model.compile(optimizer=opt,loss='categorical_crossentropy')
 
 dataloader = DataLoader(args_dict)
-val_gen = dataloader.generator('val',batch_size=args_dict.bs,train_flag=False)
-N_train, N_val = dataloader.get_dataset_size()
-
+N_train, N_val, N_test = dataloader.get_dataset_size()
+N = args_dict.bs
+gen = dataloader.generator('test',batch_size=args_dict.bs,train_flag=False) # N samples
 captions = []
 num_samples = 0
-for ims,caps,imids in val_gen:
-    preds = model.predict(ims)
+for ims,caps,imids in gen:
 
-    for i in range(preds.shape[0]): # for each sample
-        word_idxs = []
-        for j in range(preds.shape[1]): # for each word
-            # sample word idx from distribution
-            idx = sample(preds[i,j,:],temperature = args_dict.temperature)
-            word_idxs.append(idx)
-        word_idxs = np.array(word_idxs)
+    # greedy caps
+    prevs = np.ones((N,1))
+    word_idxs = np.zeros((N,args_dict.seqlen))
 
-        # predicted captions
-        pred_cap = preds2cap(word_idxs,inv_vocab)
-        caption = ' '.join(pred_cap)
+    for i in range(args_dict.seqlen):
+        # get predictions
+        preds = model.predict([ims,prevs]) #(N,1,vocab_size)
+        preds = preds.squeeze()
 
-        captions.append({"image_id":imids[i]['id'],
-                         "caption": caption})
-        num_samples+=1
+        word_idxs[:,i] = np.argmax(preds,axis=-1)
+        prevs = np.argmax(preds,axis=-1)
+        prevs = np.reshape(prevs,(N,1))
 
-    if num_samples == N_val:
+    pred_caps = idx2word(word_idxs,inv_vocab)
+    true_caps = idx2word(np.argmax(caps,axis=-1),inv_vocab)
+
+    pred_cap = ' '.join(pred_caps[0][:-1])# exclude eos
+    true_cap = ' '.join(true_caps[0][:-1])
+
+    captions.append({"image_id":imids[0]['id'],
+                    "caption": pred_cap})
+    num_samples+=1
+
+    # true captions
+    print ("ID:", imids[0]['file_name'])
+    print ("True:", true_cap)
+    print ("Gen:", pred_cap)
+    print ("-"*10)
+
+    model.reset_states()
+    if num_samples == N_test:
         break
-
+print len(captions)
 results_file = os.path.join(args_dict.data_folder, 'results',
                           args_dict.model_name +'_gencaps.json')
+
 with open(results_file, 'w') as outfile:
     json.dump(captions, outfile)
+    '''
+    ### beam search caps ###
+    seqs,scores = beamsearch(model,ims)
+    top_N = 10
+    top_10 = np.argsort(np.array(scores))[::-1][:top_N]
+    top_caps = np.array(seqs)[top_10]
+
+    pred_caps = idx2word(top_caps,inv_vocab)
+    true_caps = idx2word(np.argmax(caps,axis=-1),inv_vocab)
+
+    # true caption
+    print ("ID:", imids[0]['file_name'])
+    true_cap = ' '.join(true_caps[0])
+    print ("True:", true_cap)
+
+    for i in range(top_N):
+        pred_cap = ' '.join(pred_caps[i])
+        print ("Gen:", pred_cap)
+        print ("-"*10)
+    print "="*10
+    model.reset_states()
+    '''
