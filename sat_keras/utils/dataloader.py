@@ -245,4 +245,4 @@ class DataLoader(object):
                 if train_flag:
                     yield [batch_ims,prev_caps],batch_caps,sample_weight
                 else:
-                    yield batch_ims,batch_caps,np.array(imlist)[batch_idxs]
+                    yield [batch_ims,prev_caps],batch_caps,np.array(imlist)[batch_idxs]

@@ -7,6 +7,7 @@ from utils.lang_proc import idx2word, sample, beamsearch
 from model import get_model
 import pickle
 import json
+import time
 
 parser = get_parser()
 args_dict = parser.parse_args()
@@ -30,7 +31,9 @@ N = args_dict.bs
 gen = dataloader.generator('test',batch_size=args_dict.bs,train_flag=False) # N samples
 captions = []
 num_samples = 0
-for ims,caps,imids in gen:
+print_every = 100
+t = time.time()
+for [ims,prevs],caps,imids in gen:
 
     # greedy caps
     prevs = np.ones((N,1))
@@ -46,31 +49,34 @@ for ims,caps,imids in gen:
         prevs = np.reshape(prevs,(N,1))
 
     pred_caps = idx2word(word_idxs,inv_vocab)
-    true_caps = idx2word(np.argmax(caps,axis=-1),inv_vocab)
+    #true_caps = idx2word(np.argmax(caps,axis=-1),inv_vocab)
 
     pred_cap = ' '.join(pred_caps[0][:-1])# exclude eos
-    true_cap = ' '.join(true_caps[0][:-1])
+    #true_cap = ' '.join(true_caps[0][:-1])
 
     captions.append({"image_id":imids[0]['id'],
                     "caption": pred_cap})
     num_samples+=1
 
+    if num_samples%print_every==0:
+        print ("%d/%d"%(num_samples,N_test))
     # true captions
-    print ("ID:", imids[0]['file_name'])
-    print ("True:", true_cap)
-    print ("Gen:", pred_cap)
-    print ("-"*10)
+    #print ("ID:", imids[0]['file_name'])
+    #print ("True:", true_cap)
+    #print ("Gen:", pred_cap)
+    #print ("-"*10)
 
     model.reset_states()
     if num_samples == N_test:
         break
-print len(captions)
+print "Processed %s captions in %f seconds."%(len(captions),time.time() - t)
 results_file = os.path.join(args_dict.data_folder, 'results',
                           args_dict.model_name +'_gencaps.json')
-
 with open(results_file, 'w') as outfile:
     json.dump(captions, outfile)
-    '''
+print "Saved results in", results_file
+
+'''
     ### beam search caps ###
     seqs,scores = beamsearch(model,ims)
     top_N = 10
@@ -91,4 +97,4 @@ with open(results_file, 'w') as outfile:
         print ("-"*10)
     print "="*10
     model.reset_states()
-    '''
+'''
