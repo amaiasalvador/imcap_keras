@@ -64,7 +64,7 @@ def get_parser():
     parser.add_argument('-optim',dest='optim', default ='adam',
                                 choices=['adam','SGD','adadelta','adagrad',
                                 'rmsprop'], help='Optimizer')
-    parser.add_argument('-lr',dest='lr', default = 0.001,
+    parser.add_argument('-lr',dest='lr', default = 0.01,
                                 help='Learning rate',type=float)
     parser.add_argument('-decay',dest='decay', default = 0.0,
                                 help='LR decay',type=float)
