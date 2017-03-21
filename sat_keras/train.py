@@ -36,21 +36,21 @@ val_gen = dataloader.generator('val',args_dict.bs)
 # Callbacks
 model_name = os.path.join(args_dict.data_folder, 'models',
                           args_dict.model_name
-                          +'_weights.{epoch:02d}-{loss:.2f}.h5')
+                          +'_weights.{epoch:02d}-{val_loss:.2f}.h5')
 
-#ep = EarlyStopping(monitor='val_loss', patience=args_dict.pat,
-#                  verbose=0, mode='auto')
+ep = EarlyStopping(monitor='val_loss', patience=args_dict.pat,
+                  verbose=0, mode='auto')
 
-mc = ModelCheckpoint(model_name, monitor='loss', verbose=0,
+mc = ModelCheckpoint(model_name, monitor='val_loss', verbose=0,
                     save_best_only=True, mode='auto')
 
-# reset states after each batch
+# reset states after each batch (bcs stateful)
 rs = ResetStatesCallback()
-history = model.fit_generator(train_gen,nb_epoch=args_dict.nepochs,
-                            samples_per_epoch=N_train,
-                            validation_data=val_gen,
-                            nb_val_samples=N_val,
-                            callbacks=[mc,rs],
-                            verbose = 1,
-                            nb_worker = args_dict.workers,
-                            pickle_safe = False)
+model.fit_generator(train_gen,nb_epoch=args_dict.nepochs,
+                    samples_per_epoch=N_train,
+                    validation_data=val_gen,
+                    nb_val_samples=N_val,
+                    callbacks=[mc,ep,rs],
+                    verbose = 1,
+                    nb_worker = args_dict.workers,
+                    pickle_safe = False)

@@ -96,26 +96,28 @@ def get_model(args_dict):
     lstm_ = LSTM(args_dict.lstm_dim,return_sequences=True,stateful=True,
                  dropout_W=args_dict.dr_ratio,dropout_U=args_dict.dr_ratio,
                  W_regularizer = l2(args_dict.l2reg),
-                 U_regularizer=l2(args_dict.l2reg), name='lstm')
+                 U_regularizer=l2(args_dict.l2reg), name='h')
 
     h = lstm_(x) # seqlen,lstm_dim
     #h = LSTM(args_dict.lstm_dim,return_sequences=True)(x) # seqlen,lstm_dim
     if args_dict.attlstm:
 
         # repeat all vectors as many times as timesteps (seqlen)
-        z_v = TimeDistributed(RepeatVector(seqlen),name='Vi_rep')(Vi) # 225,seqlen,z_dim
-        z_v = Permute((2,1,3),name='Vi_rep_p')(z_v) # seqlen,225,z_dim
+        z_v = TimeDistributed(RepeatVector(seqlen),name='zv_rep')(Vi) # 225,seqlen,z_dim
+        z_v = Permute((2,1,3),name='zv_rep_p')(z_v) # seqlen,225,z_dim
+        z_v = BatchNormalization(name='zv_rep_p_bn')(z_v)
 
         # map h vectors (of all timesteps) to z space
-        z_h = TimeDistributed(Dense(args_dict.z_dim,activation='relu',
-                                    W_regularizer=l2(args_dict.l2reg)),name='h_')(h) # seqlen,z_dim
-        z_h = BatchNormalization()(z_h)
+        h = TimeDistributed(Dense(args_dict.z_dim,activation='relu',
+                                    W_regularizer=l2(args_dict.l2reg)),name='zh')(h) # seqlen,z_dim
+        h = BatchNormalization(name='zh_bn')(h)
 
         # repeat all h vectors as many times as v features
-        z_h = TimeDistributed(RepeatVector(wh*wh),name='h_rep')(z_h) # seqlen,225,z_dim
+        z_h = TimeDistributed(RepeatVector(wh*wh),name='zh_rep_bn')(h) # seqlen,225,z_dim
 
         # sum outputs from z_v and z_h
-        z = Merge(mode='concat',name='merge_v_h')([z_h,z_v]) # seqlen,225,z_dim
+        z = Merge(mode='sum',name='merge_v_h')([z_h,z_v]) # seqlen,225,z_dim
+        z = Activation('tanh',name='merge_v_h_tanh')(z)
 
         # compute attention values
         att = TimeDistributed(TimeDistributed(Dense(1,W_regularizer=l2(args_dict.l2reg))),name='att')(z) # seqlen,225,1
@@ -132,10 +134,11 @@ def get_model(args_dict):
         # get context vector as weighted sum of image features using att
         w_Vi = Merge(mode='mul',name='vi_weighted')([att,Vi_r]) # seqlen,225,512
         c_vec = TimeDistributed(GlobalAveragePooling1D(),name='c_vec')(w_Vi) # seqlen,512
+        c_vec = BatchNormalization(name='c_vec_bn')(c_vec)
 
-        h = Merge(mode='concat',name='mlp_in')([h,c_vec])
-        h = Activation('tanh')(h)
-        h = Dropout(args_dict.dr_ratio)(h)
+        h = Merge(mode='sum',name='mlp_in')([h,c_vec])
+        h = Activation('tanh',name='mlp_in_tanh')(h)
+        h = Dropout(args_dict.dr_ratio,name='mlp_in_tanh_dp')(h)
 
     predictions = TimeDistributed(Dense(num_classes,activation='softmax',W_regularizer=l2(args_dict.l2reg)),name='out')(h)
 

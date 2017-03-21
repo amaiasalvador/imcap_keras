@@ -47,9 +47,9 @@ def get_parser():
     # Model parameters
     parser.add_argument('-seqlen',dest='seqlen', default = 20,
                         help='Maximum sentence length',type=int)
-    parser.add_argument('-lstm_dim',dest='lstm_dim', default = 256,
+    parser.add_argument('-lstm_dim',dest='lstm_dim', default = 512,
                         help='Number of LSTM units',type=int)
-    parser.add_argument('-emb_dim',dest='emb_dim', default = 100,
+    parser.add_argument('-emb_dim',dest='emb_dim', default = 256,
                         help='Word embedding dim',type=int)
     parser.add_argument('-z_dim',dest='z_dim', default = 256,
                         help='Dimensionality of z space',type=int)
@@ -64,7 +64,7 @@ def get_parser():
     parser.add_argument('-optim',dest='optim', default ='adam',
                                 choices=['adam','SGD','adadelta','adagrad',
                                 'rmsprop'], help='Optimizer')
-    parser.add_argument('-lr',dest='lr', default = 0.01,
+    parser.add_argument('-lr',dest='lr', default = 0.001,
                                 help='Learning rate',type=float)
     parser.add_argument('-decay',dest='decay', default = 0.0,
                                 help='LR decay',type=float)
@@ -72,7 +72,7 @@ def get_parser():
                         help='Gradient clipping threshold (value)',type=float)
     parser.add_argument('-nepochs',dest='nepochs', default = 80,
                         help='Number of train epochs',type=int)
-    parser.add_argument('-pat',dest='pat', default = 10,
+    parser.add_argument('-pat',dest='pat', default = 5,
                             help='Patience',type=int)
     parser.add_argument('-l2reg',dest='l2reg', default = 1e-8,
                         help='l2 penalty on weights',type=float)
