@@ -43,7 +43,7 @@ mc = ModelCheckpoint(model_name, monitor='val_loss', verbose=0,
 #########################
 ###  Frozen Convnet   ###
 #########################
-'''
+
 # get model (frozen convnet)
 model = get_model(args_dict)
 opt = get_opt(args_dict)
@@ -61,18 +61,20 @@ model.fit_generator(train_gen,nb_epoch=args_dict.nepochs,
                     verbose = 1,
                     nb_worker = args_dict.workers,
                     pickle_safe = False)
-'''
+
 #########################
 ### Fine Tune ConvNet ###
 #########################
 
 # init model again, unfreeze convnet, load weights and fine tune
-
+print "Fine tuning convnet..."
 args_dict.lr = 1e-5
+
 model = get_model(args_dict)
 opt = get_opt(args_dict)
 
-model.load_weights('/work/asalvador/sat_keras/models/model_weights.10-2.57.h5')
+#'/work/asalvador/sat_keras/models/model_weights.10-2.57.h5'
+model.load_weights(model_name)
 
 for layer in model.layers[1].layers:
     layer.trainable = True
