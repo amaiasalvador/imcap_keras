@@ -12,13 +12,13 @@ import time
 parser = get_parser()
 args_dict = parser.parse_args()
 args_dict.mode = 'test'
+args_dict.bs = 1
 
 model = get_model(args_dict)
 opt = get_opt(args_dict)
 
 weights = args_dict.model_file
 model.load_weights(weights)
-
 vocab_file = os.path.join(args_dict.data_folder,'data',args_dict.vfile)
 vocab = pickle.load(open(vocab_file,'rb'))
 inv_vocab = {v:k for k,v in vocab.items()}
