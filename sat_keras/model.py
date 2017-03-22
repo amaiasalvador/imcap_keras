@@ -57,13 +57,9 @@ def get_model(args_dict):
     wh = base_model.output_shape[1] # size of conv5
     dim = base_model.output_shape[3] # number of channels
 
-    # specific for vgg16/vgg19. todo: adapt layer names to resnet
-    for layer in base_model.layers:
-        if not args_dict.cnn_train:
+    if not args_dict.cnn_train:
+        for layer in base_model.layers:
             layer.trainable = False
-        else:
-            if not 'block5' in layer.name and not 'block4' in layer.name:
-                layer.trainable = False
 
     im = Input(batch_shape=(args_dict.bs,args_dict.imsize,args_dict.imsize,3),name='image')
     prev_words = Input(batch_shape=(args_dict.bs,seqlen),name='prev_words')

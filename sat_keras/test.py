@@ -13,6 +13,7 @@ parser = get_parser()
 args_dict = parser.parse_args()
 args_dict.mode = 'test'
 args_dict.bs = 1
+args_dict.cnn_train = True
 
 model = get_model(args_dict)
 opt = get_opt(args_dict)
