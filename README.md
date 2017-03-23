@@ -1,6 +1,6 @@
 # Image Captioning with Spatial Attention in Keras
 
-This is a Keras & Tensorflow implementation of a captioning model. In particular, it uses the attention model described in [this](https://arxiv.org/abs/1612.01887) paper, which is depicted below:
+This is a Keras & Tensorflow implementation of a captioning model. In particular, it uses the attention models described in [this](https://arxiv.org/abs/1612.01887) paper, which is depicted below:
 
 <p align="center">
   <img src="figs/attmodel.png">
@@ -8,8 +8,7 @@ This is a Keras & Tensorflow implementation of a captioning model. In particular
 
 where V are the K local features from the last convolutional layer of a ConvNet (e.g. VGG16), x<sub>t</sub> is the input 
 (composed of the embedding of the previous word and the average image feature). h<sub>t</sub> is the hidden state of the LSTM at time t,
-which is used to compute the attention weights to apply to V in order to obtain the context vector c<sub>t</sub>. c<sub>t</sub> and h<sub>t</sub> are combined to 
-predict the current word y<sub>t</sub>.
+which is used to compute the attention weights to apply to V in order to obtain the context vector c<sub>t</sub>. c<sub>t</sub> and h<sub>t</sub> are combined to predict the current word y<sub>t</sub>. In (b), an additional gate is incorporated into the LSTM, which gives the additional s<sub>t</sub> output, which is combined with V to compute the attention weights.
 
 ## Installation
 

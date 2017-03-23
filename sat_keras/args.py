@@ -51,7 +51,7 @@ def get_parser():
                         help='Number of LSTM units',type=int)
     parser.add_argument('-emb_dim',dest='emb_dim', default = 256,
                         help='Word embedding dim',type=int)
-    parser.add_argument('-z_dim',dest='z_dim', default = 256,
+    parser.add_argument('-z_dim',dest='z_dim', default = 512,
                         help='Dimensionality of z space',type=int)
     parser.add_argument('-dr_ratio',dest='dr_ratio', default = 0.5,
                         help='Dropout ratio',type=int)
@@ -78,10 +78,6 @@ def get_parser():
                         help='l2 penalty on weights',type=float)
     parser.add_argument('-workers',dest='workers', default = 2,
                         help='Number of data loading threads',type=int)
-
-    # sampling
-    parser.add_argument('-t',dest='temperature', default = 1.0,
-                        help='Sample temperature',type=float)
 
     # flags & bools
     parser.add_argument('-mode', dest='mode',

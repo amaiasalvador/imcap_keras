@@ -104,7 +104,9 @@ def get_model(args_dict):
         hs = lstm_(x)
 
         h = Lambda(slice_0,output_shape=slice_output_shape,name='h')(hs)
+        h = Reshape((seqlen,args_dict.lstm_dim))(h)
         s = Lambda(slice_1,output_shape=slice_output_shape,name='s')(hs)
+        s = Reshape((seqlen,args_dict.lstm_dim))(s)
 
     else:
         lstm_ = LSTM(args_dict.lstm_dim,return_sequences=True,stateful=True,
