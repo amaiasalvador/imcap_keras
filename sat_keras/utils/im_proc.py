@@ -1,6 +1,16 @@
 from scipy.misc import imread, imresize
 import numpy as np
 
+def read_image(impath,imsize):
+
+    img = imread(impath,mode='RGB')
+    if img.ndim == 2: # handling grayscale
+        img = img[:,:,None][:,:,[0,0,0]]
+
+    img = imresize(img, imsize)
+
+    return img
+
 def process_image(impath,imsize):
     img = imread(impath,mode='RGB')
     if img.ndim == 2: # handling grayscale

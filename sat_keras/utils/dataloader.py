@@ -1,4 +1,4 @@
-from utils.im_proc import process_image, center_crop
+from utils.im_proc import read_image
 from keras.applications.imagenet_utils import preprocess_input
 from keras.utils.np_utils import to_categorical
 import numpy as np
@@ -151,10 +151,14 @@ class DataLoader(object):
 
                     # load and preprocess image (resize + center crop)
                     filename = im['file_name']
+
+                    img = read_image(os.path.join(ims_path,filename),
+                                    (self.imsize,self.imsize))
+                    '''
                     img = process_image(os.path.join(ims_path,filename),
                                             self.resize)
                     img = center_crop(img, self.imsize)
-
+                    '''
                     idata[i,:,:,:] = img
                     cdata[i,:,:] = caps_labels
 

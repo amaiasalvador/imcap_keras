@@ -8,10 +8,10 @@ def get_parser():
     parser.add_argument('-model_name', dest='model_name',
                         default = 'model',help='Base name to save model')
     parser.add_argument('-h5file', dest='h5file',
-                        default = 'datasetv2.h5',
+                        default = 'dataset.h5',
                         help='name of hdf5 file (with extension)')
     parser.add_argument('-vfile', dest='vfile',
-                        default = 'vocab2.pkl',
+                        default = 'vocab.pkl',
                         help='name of vocab file (with extension)')
     parser.add_argument('-model_file', dest='model_file',
                         default = 'model_file',help='path to model file to load.')
