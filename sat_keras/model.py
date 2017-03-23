@@ -1,5 +1,5 @@
 from keras.models import Model
-from keras.layers import Input, BatchNormalization
+from keras.layers import Input, BatchNormalization, Lambda
 from keras.layers.core import Dense, Activation, Permute, Merge
 from keras.layers.core import RepeatVector, Dropout, Reshape
 from keras.layers.pooling import GlobalAveragePooling2D,GlobalAveragePooling1D
@@ -8,8 +8,16 @@ from keras.layers.embeddings import Embedding
 from keras.layers.wrappers import TimeDistributed
 from keras import backend as K
 from keras.regularizers import l2
+from layers.lstm_sent import LSTM_sent
 
 from args import get_parser
+
+def slice_0(x):
+    return x[0]
+def slice_1(x):
+    return x[1]
+def slice_output_shape(input_shape):
+    return input_shape[0]
 
 def get_base_model(args_dict):
     '''
@@ -88,48 +96,70 @@ def get_model(args_dict):
     # input is the concatenation of avg imfeats and previous words
     x = Merge(mode='concat',name='lstm_in')([x,emb])
 
-    in_lstm = (args_dict.bs,seqlen,args_dict.emb_dim + dim)
-    lstm_ = LSTM(args_dict.lstm_dim,return_sequences=True,stateful=True,
-                 dropout_W=args_dict.dr_ratio,dropout_U=args_dict.dr_ratio,
-                 W_regularizer = l2(args_dict.l2reg),
-                 U_regularizer=l2(args_dict.l2reg), name='h')
+    if args_dict.sgate:
+        lstm_ = LSTM_sent(args_dict.lstm_dim,return_sequences=True,stateful=True,
+                     dropout_W=args_dict.dr_ratio,dropout_U=args_dict.dr_ratio,
+                     W_regularizer = l2(args_dict.l2reg),
+                     U_regularizer=l2(args_dict.l2reg), name='hs')
+        hs = lstm_(x)
 
-    h = lstm_(x) # seqlen,lstm_dim
-    #h = LSTM(args_dict.lstm_dim,return_sequences=True)(x) # seqlen,lstm_dim
+        h = Lambda(slice_0,output_shape=slice_output_shape,name='h')(hs)
+        s = Lambda(slice_1,output_shape=slice_output_shape,name='s')(hs)
+
+    else:
+        lstm_ = LSTM(args_dict.lstm_dim,return_sequences=True,stateful=True,
+                     dropout_W=args_dict.dr_ratio,dropout_U=args_dict.dr_ratio,
+                     W_regularizer = l2(args_dict.l2reg),
+                     U_regularizer=l2(args_dict.l2reg), name='h')
+        h = lstm_(x)
+
+    num_vfeats = wh*wh
+    if args_dict.sgate:
+        num_vfeats = num_vfeats + 1
+
     if args_dict.attlstm:
 
         # repeat all vectors as many times as timesteps (seqlen)
-        z_v = TimeDistributed(RepeatVector(seqlen),name='zv_rep')(Vi) # 225,seqlen,z_dim
-        z_v = Permute((2,1,3),name='zv_rep_p')(z_v) # seqlen,225,z_dim
+        z_v = TimeDistributed(RepeatVector(seqlen),name='zv_rep')(Vi)
+        z_v = Permute((2,1,3),name='zv_rep_p')(z_v)
         z_v = BatchNormalization(name='zv_rep_p_bn')(z_v)
 
         # map h vectors (of all timesteps) to z space
         h = TimeDistributed(Dense(args_dict.z_dim,activation='relu',
-                                    W_regularizer=l2(args_dict.l2reg)),name='zh')(h) # seqlen,z_dim
+                                    W_regularizer=l2(args_dict.l2reg)),name='zh')(h)
         h = BatchNormalization(name='zh_bn')(h)
-
         # repeat all h vectors as many times as v features
-        z_h = TimeDistributed(RepeatVector(wh*wh),name='zh_rep_bn')(h) # seqlen,225,z_dim
+        z_h = TimeDistributed(RepeatVector(num_vfeats),name='zh_rep_bn')(h)
+
+        if args_dict.sgate:
+
+            # map s vectors to z space
+            s = TimeDistributed(Dense(args_dict.z_dim,activation='relu',
+                                W_regularizer=l2(args_dict.l2reg)),name='zs')(s)
+            s = BatchNormalization(name='zs_bn')(s) # (seqlen,zdim)
+            # reshape for merging with visual feats
+            s = Reshape((seqlen,1,args_dict.z_dim))(s)
+
+            z_v = Merge(mode='concat',concat_axis=-2)([z_v,s])
+
+            z_h = Reshape((seqlen,num_vfeats,args_dict.z_dim))(z_h)
 
         # sum outputs from z_v and z_h
-        z = Merge(mode='sum',name='merge_v_h')([z_h,z_v]) # seqlen,225,z_dim
+        z = Merge(mode='sum',name='merge_v_h')([z_h,z_v])
         z = Activation('tanh',name='merge_v_h_tanh')(z)
 
         # compute attention values
-        att = TimeDistributed(TimeDistributed(Dense(1,W_regularizer=l2(args_dict.l2reg))),name='att')(z) # seqlen,225,1
-        att = Reshape((seqlen,wh*wh),name='att_res')(att)
-        # softmax activation
-        att = TimeDistributed(Activation('softmax'),name='att_scores')(att) # seqlen,225
-        att = TimeDistributed(RepeatVector(args_dict.z_dim),name='att_rep')(att) #seqlen,512,225
-        att = Permute((1,3,2),name='att_rep_p')(att) # seqlen,225,512
+        att = TimeDistributed(TimeDistributed(Dense(1,W_regularizer=l2(args_dict.l2reg))),name='att')(z)
 
-        # get image vectors (repeated seqlen times)
-        Vi_r = TimeDistributed(RepeatVector(seqlen),name='vi_rep')(Vi) # 225,seqlen,512
-        Vi_r = Permute((2,1,3),name='vi_rep_p')(Vi_r) # seqlen,225,512
+        att = Reshape((seqlen,num_vfeats),name='att_res')(att)
+        # softmax activation
+        att = TimeDistributed(Activation('softmax'),name='att_scores')(att)
+        att = TimeDistributed(RepeatVector(args_dict.z_dim),name='att_rep')(att)
+        att = Permute((1,3,2),name='att_rep_p')(att)
 
         # get context vector as weighted sum of image features using att
-        w_Vi = Merge(mode='mul',name='vi_weighted')([att,Vi_r]) # seqlen,225,512
-        c_vec = TimeDistributed(GlobalAveragePooling1D(),name='c_vec')(w_Vi) # seqlen,512
+        w_Vi = Merge(mode='mul',name='vi_weighted')([att,z_v])
+        c_vec = TimeDistributed(GlobalAveragePooling1D(),name='c_vec')(w_Vi)
         c_vec = BatchNormalization(name='c_vec_bn')(c_vec)
 
         h = Merge(mode='sum',name='mlp_in')([h,c_vec])

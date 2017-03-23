@@ -1,6 +1,8 @@
 from keras.layers.recurrent import *
 from keras.models import Sequential, Model
 from keras.layers import Input, Lambda, Dense
+from keras.layers.wrappers import TimeDistributed
+from keras.regularizers import l2
 
 class LSTM_sent(Recurrent):
     """
@@ -272,21 +274,22 @@ def slice_output_shape(input_shape):
     return input_shape[0]
 
 if __name__ == '__main__':
-
+    bs = 15
     seqlen = 10
     in_dim = 100
     lstm_dim = 256
     d_dim = 40
 
-    lstm = LSTM_sent(lstm_dim,input_shape=(seqlen,in_dim))
-    I = Input(shape=(seqlen,in_dim))
+    I = Input(batch_shape=(bs,seqlen,in_dim))
+    lstm=LSTM_sent(256,return_sequences=True,stateful=True,
+                 dropout_W=0.5,dropout_U=0.5,
+                 W_regularizer = l2(1e-6),
+                 U_regularizer=l2(1e-6), name='hs')
     hs = lstm(I) # hs contains the hidden state and the sentinel
-
     dh = Lambda(slice_0,output_shape=slice_output_shape)(hs)
     ds = Lambda(slice_1,output_shape=slice_output_shape)(hs)
-
-    dh = Dense(d_dim,activation='softmax')(dh)
-    ds = Dense(d_dim,activation='softmax')(ds)
+    dh = TimeDistributed(Dense(d_dim,activation='softmax'))(dh)
+    ds = TimeDistributed(Dense(d_dim,activation='softmax'))(ds)
 
     m = Model(input = I, output = [dh,ds])
     m.summary()

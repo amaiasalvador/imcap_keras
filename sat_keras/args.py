@@ -95,6 +95,10 @@ def get_parser():
     parser.add_argument('--lstm', dest='attlstm', action='store_false')
     parser.set_defaults(attlstm=True)
 
+    parser.add_argument('--sgate', dest='sgate', action='store_true')
+    parser.add_argument('--nosgate', dest='sgate', action='store_false')
+    parser.set_defaults(sgate=False)
+
     return parser
 
 if __name__ =="__main__":

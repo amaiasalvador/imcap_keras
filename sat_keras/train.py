@@ -70,11 +70,11 @@ model.fit_generator(train_gen,nb_epoch=args_dict.nepochs,
 print "Fine tuning convnet..."
 args_dict.lr = 1e-5
 
-model = get_model(args_dict)
+#model = get_model(args_dict)
 opt = get_opt(args_dict)
 
 #'/work/asalvador/sat_keras/models/model_weights.10-2.57.h5'
-model.load_weights(model_name)
+#model.load_weights(model_name)
 
 model_name = os.path.join(args_dict.data_folder, 'models',
                           args_dict.model_name + '_cnn_train'
