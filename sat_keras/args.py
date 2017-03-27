@@ -6,9 +6,9 @@ def get_parser():
 
     # naming & savefiles
     parser.add_argument('-model_name', dest='model_name',
-                        default = 'model',help='Base name to save model')
+                        default = 'resnet',help='Base name to save model')
     parser.add_argument('-h5file', dest='h5file',
-                        default = 'dataset.h5',
+                        default = 'datasetv2.h5',
                         help='name of hdf5 file (with extension)')
     parser.add_argument('-vfile', dest='vfile',
                         default = 'vocab.pkl',
@@ -32,7 +32,7 @@ def get_parser():
 
     # model parts, inputs
     parser.add_argument('-cnn', dest='cnn',
-                        default = 'vgg16', choices=['vgg16','vgg19','resnet'],
+                        default = 'resnet', choices=['vgg16','vgg19','resnet'],
                         help='Pretrained CNN to use')
     parser.add_argument('-resize', dest='resize',
                         default = 256, help='Image resize',type=int)
@@ -49,7 +49,7 @@ def get_parser():
                         help='Maximum sentence length',type=int)
     parser.add_argument('-lstm_dim',dest='lstm_dim', default = 512,
                         help='Number of LSTM units',type=int)
-    parser.add_argument('-emb_dim',dest='emb_dim', default = 256,
+    parser.add_argument('-emb_dim',dest='emb_dim', default = 512,
                         help='Word embedding dim',type=int)
     parser.add_argument('-z_dim',dest='z_dim', default = 512,
                         help='Dimensionality of z space',type=int)
@@ -59,7 +59,7 @@ def get_parser():
     # Training params
     parser.add_argument('-seed', dest='seed',
                         default = 4242, help='Random seed',type=int)
-    parser.add_argument('-bs',dest='bs', default = 128,
+    parser.add_argument('-bs',dest='bs', default = 64,
                             help='Batch Size',type=int)
     parser.add_argument('-optim',dest='optim', default ='adam',
                                 choices=['adam','SGD','adadelta','adagrad',
@@ -70,7 +70,7 @@ def get_parser():
                                 help='LR decay',type=float)
     parser.add_argument('-clip',dest='clip', default = 5.0,
                         help='Gradient clipping threshold (value)',type=float)
-    parser.add_argument('-nepochs',dest='nepochs', default = 80,
+    parser.add_argument('-nepochs',dest='nepochs', default = 40,
                         help='Number of train epochs',type=int)
     parser.add_argument('-pat',dest='pat', default = 5,
                             help='Patience',type=int)

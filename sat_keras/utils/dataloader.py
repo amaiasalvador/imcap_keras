@@ -53,6 +53,16 @@ class DataLoader(object):
         vocab_file = os.path.join(args_dict.data_folder,'data',self.vfile)
         self.vocab = pickle.load(open(vocab_file,'rb'))
 
+
+    def get_split(self,partition):
+
+        with open(os.path.join('../splits/coco_%s.txt'%(partition)),'r') as f:
+            lines = f.readlines()
+            imnames = []
+            for line in lines:
+                imnames.append(line.rstrip())
+
+        return imnames
     def get_anns(self,partition):
 
         '''
@@ -73,11 +83,17 @@ class DataLoader(object):
         ims = data['images']
         anns = data['annotations']
 
+        imname2idx = {}
+        for i,im in enumerate(ims):
+            imname2idx[im['file_name']] = i
+
         # val: first 5k val images, test: second 5k images
-        if partition == 'test':
-            ims = ims[self.num_val:self.num_val + self.num_test]
-        elif partition == 'val':
-            ims = ims[0:self.num_val]
+        if partition == 'test' or partition == 'val':
+            filenames = self.get_split(partition)
+            ims = [ims[imname2idx[x]] for x in filenames]
+            #ims = ims[self.num_val:self.num_val + self.num_test]
+        #elif partition == 'val':
+        #    ims = ims[0:self.num_val]
 
         # dictionary mapping image id with the list of N captions for that image
         imid2caps = {}

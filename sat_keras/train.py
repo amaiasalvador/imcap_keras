@@ -68,7 +68,7 @@ model.fit_generator(train_gen,nb_epoch=args_dict.nepochs,
 
 # init model again, unfreeze convnet, load weights and fine tune
 print "Fine tuning convnet..."
-args_dict.lr = 1e-5
+args_dict.lr /= 100
 
 #model = get_model(args_dict)
 opt = get_opt(args_dict)
