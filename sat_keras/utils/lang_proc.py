@@ -67,8 +67,6 @@ def beamsearch(model,image,start=1,eos=2,maxsample=15,k=3,max_keep=200):
     return dead_samples + live_samples, dead_scores + live_scores
 
 
-
-
 def lemmatize_sentence(sentence):
     lem = []
     for word in sentence:
@@ -89,7 +87,7 @@ def idx2word(idxs,vocab):
     captions = []
     for i in range(idxs.shape[0]): # for all images
         caption = []
-        for j in range(idxs.shape[1]):
+        for j in range(idxs.shape[1]): # for all elements in sequence
             word = vocab.get(idxs[i,j])
             if word:
                 caption.append(word)

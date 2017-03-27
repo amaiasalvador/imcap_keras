@@ -74,6 +74,9 @@ def get_parser():
                         help='Number of train epochs',type=int)
     parser.add_argument('-pat',dest='pat', default = 5,
                             help='Patience',type=int)
+    parser.add_argument('-es_metric',dest='es_metric', default = 'loss',
+                            choices=['loss','bleu','meteor','cider',
+                            'rouge'], help='Early stopping metric')
     parser.add_argument('-l2reg',dest='l2reg', default = 1e-8,
                         help='l2 penalty on weights',type=float)
     parser.add_argument('-workers',dest='workers', default = 2,

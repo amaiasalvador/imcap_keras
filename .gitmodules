@@ -1,3 +1,6 @@
 [submodule "sat_keras/coco-caption"]
 	path = sat_keras/coco-caption
 	url = https://github.com/amaiasalvador/coco-caption
+[submodule "sat_keras/cococaption"]
+	path = sat_keras/cococaption
+	url = https://github.com/amaiasalvador/coco-caption.git

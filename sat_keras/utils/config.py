@@ -1,5 +1,6 @@
 from keras.optimizers import SGD, RMSprop, Adam, Adadelta, Adagrad
 from keras.callbacks import Callback
+import numpy as np
 
 def get_opt(args_dict):
 
@@ -24,3 +25,35 @@ def get_opt(args_dict):
 class ResetStatesCallback(Callback):
     def on_batch_end(self, batch, logs={}):
         self.model.reset_states()
+
+'''
+
+class EarlyStoppingCap(Callback):
+
+    def __init__(self,args_dict):
+
+        self.verbose = False
+        self.save_best_only = True
+
+        self.best_val_loss = np.inf
+        self.val_loss = []
+
+        self.val_metric = []
+        self.best_val_metric = np.NINF
+
+
+    def on_epoch_end(self,epoch,logs={}):
+
+
+    def early_stop_decision(self,epoch,val_metric,val_loss):
+
+        if val_loss < self.best_val_loss:
+            self.wait = 0
+        elif val_metric > self.best_val_metric:
+            self.wait = 0
+        else:
+            self.wait +=1
+            if self.wait >= self.patience:
+                self.stopped_epoch = epoch
+                self.model.stop_training = True
+'''

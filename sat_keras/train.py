@@ -40,6 +40,9 @@ ep = EarlyStopping(monitor='val_loss', patience=args_dict.pat,
 mc = ModelCheckpoint(model_name, monitor='val_loss', verbose=0,
                     save_best_only=True, mode='auto')
 
+# reset states after each batch (bcs stateful)
+rs = ResetStatesCallback()
+
 #########################
 ###  Frozen Convnet   ###
 #########################
@@ -51,17 +54,39 @@ opt = get_opt(args_dict)
 model.compile(optimizer=opt,loss='categorical_crossentropy',
               sample_weight_mode="temporal")
 
-# reset states after each batch (bcs stateful)
-rs = ResetStatesCallback()
+#if args_dict.es_metric == 'loss':
 model.fit_generator(train_gen,nb_epoch=args_dict.nepochs,
-                    samples_per_epoch=N_train,
-                    validation_data=val_gen,
-                    nb_val_samples=N_val,
-                    callbacks=[mc,ep,rs],
-                    verbose = 1,
-                    nb_worker = args_dict.workers,
-                    pickle_safe = False)
+                        samples_per_epoch=N_train,
+                        validation_data=val_gen,
+                        nb_val_samples=N_val,
+                        callbacks=[mc,ep,rs],
+                        verbose = 1,
+                        nb_worker = args_dict.workers,
+                        pickle_safe = False)
+'''
+else:
 
+    vocab_file = os.path.join(args_dict.data_folder,'data',args_dict.vfile)
+    vocab = pickle.load(open(vocab_file,'rb'))
+
+    for e in range(args_dict.nepochs):
+        samples = 0
+        for x,y,sw in train_gen:
+            model.fit(x=x,y=y,sample_weight=sw,
+                      batch_size=args_dict.bs,callbacks=[rs])
+            train_samples+=args_dict.bs
+            if samples >= N_train:
+                break
+
+        preds = model.predict_generator(val_gen,steps=(N_val/args_dict.bs))
+        pred_idxs = np.argmax(preds,axis=-1)
+        captions = idx2word(pred_idxs,vocab)
+        for caption in captions:
+            pred_cap = ' '.join(caption[:-1])# exclude eos
+            captions.append({"image_id":imids[0]['id'],
+                            "caption": pred_cap})
+
+'''
 #########################
 ### Fine Tune ConvNet ###
 #########################
@@ -86,7 +111,7 @@ for layer in model.layers[1].layers:
 model.compile(optimizer=opt,loss='categorical_crossentropy',
               sample_weight_mode="temporal")
 
-rs = ResetStatesCallback()
+#if args_dict.es_metric == 'loss':
 model.fit_generator(train_gen,nb_epoch=args_dict.nepochs,
                     samples_per_epoch=N_train,
                     validation_data=val_gen,

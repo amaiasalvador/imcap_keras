@@ -1,5 +1,5 @@
-from coco_caption.pycocotools.coco import COCO
-from coco_caption.pycocoevalcap.eval import COCOEvalCap
+from cococaption.pycocotools.coco import COCO
+from cococaption.pycocoevalcap.eval import COCOEvalCap
 import argparse
 
 def get_parser():
