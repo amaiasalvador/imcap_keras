@@ -44,7 +44,10 @@ def get_base_model(args_dict):
     base_model = cnn(weights='imagenet', include_top=False,
                            input_shape = input_shape)
 
-    return base_model
+    if args_dict.cnn == 'resnet':
+        return Model(input=base_model.input,output=[base_model.get_layer('activation_49').output])
+    else:
+        return base_model
 
 def get_model(args_dict):
 

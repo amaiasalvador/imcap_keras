@@ -104,6 +104,8 @@ opt = get_opt(args_dict)
 model_name = os.path.join(args_dict.data_folder, 'models',
                           args_dict.model_name + '_cnn_train'
                           +'_weights.{epoch:02d}-{val_loss:.2f}.h5')
+mc = ModelCheckpoint(model_name, monitor='val_loss', verbose=0,
+                    save_best_only=True, mode='auto')
 
 for layer in model.layers[1].layers:
     layer.trainable = True
