@@ -61,11 +61,6 @@ for [ims,prevs],caps,imids in gen:
 
     if num_samples%print_every==0:
         print ("%d/%d"%(num_samples,N_test))
-    # true captions
-    #print ("ID:", imids[0]['file_name'])
-    #print ("True:", true_cap)
-    #print ("Gen:", pred_cap)
-    #print ("-"*10)
 
     model.reset_states()
     if num_samples == N_test:
