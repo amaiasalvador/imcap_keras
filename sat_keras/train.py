@@ -2,123 +2,162 @@ import numpy as np
 import os
 from model import get_model
 from keras.callbacks import EarlyStopping, ModelCheckpoint
+from keras.utils.generic_utils import Progbar
 from args import get_parser
 from utils.dataloader import DataLoader
+from utils.lang_proc import idx2word
 from utils.config import get_opt, ResetStatesCallback
+from cococaption.pycocotools.coco import COCO
+from cococaption.pycocoevalcap.eval import COCOEvalCap
 import sys
 import pickle
-import keras.backend as K
+import json
 
-parser = get_parser()
-args_dict = parser.parse_args()
+def gencaps(args_dict,model,gen,vocab,N_val):
+    '''
+    Extract and save validation captions for early stopping based on metrics
+    '''
+    captions = []
+    samples = args_dict.bs
+    for x,y,imids in gen:
+        preds = model.predict_on_batch(x)
+        model.reset_states()
+        pred_idxs = np.argmax(preds,axis=-1)
+        caps = idx2word(pred_idxs,vocab)
 
-print (args_dict)
-print ("="*10)
-# for reproducibility
-np.random.seed(args_dict.seed)
+        for i,caption in enumerate(caps):
+            pred_cap = ' '.join(caption[:-1])# exclude eos
+            captions.append({"image_id":imids[i]['id'],
+                            "caption": pred_cap})
+        samples+=args_dict.bs
+        if samples >= N_val:
+            break
+    results_file = os.path.join(args_dict.data_folder, 'results',
+                              args_dict.model_name +'_gencaps_val.json')
+    with open(results_file, 'w') as outfile:
+        json.dump(captions, outfile)
 
-sys.stdout = open(os.path.join('../logs/',args_dict.model_name+'_train.txt'),"w")
+    return results_file
 
-dataloader = DataLoader(args_dict)
+def get_metric(args_dict,results_file,ann_file):
+    coco = COCO(ann_file)
+    cocoRes = coco.loadRes(results_file)
 
-N_train, N_val, N_test = dataloader.get_dataset_size()
+    cocoEval = COCOEvalCap(coco, cocoRes)
+    cocoEval.evaluate()
 
-print ('train',N_train,'val',N_val)
+    return cocoEval.eval[args_dict.es_metric]
 
-## DataLoaders
-train_gen = dataloader.generator('train',args_dict.bs)
-val_gen = dataloader.generator('val',args_dict.bs)
+def trainloop(args_dict,model):
 
-## Callbacks
-model_name = os.path.join(args_dict.data_folder, 'models',
-                          args_dict.model_name
-                          +'_weights.{epoch:02d}-{val_loss:.2f}.h5')
+    ## DataLoaders
+    dataloader = DataLoader(args_dict)
+    N_train, N_val, N_test = dataloader.get_dataset_size()
+    train_gen = dataloader.generator('train',args_dict.bs)
 
-ep = EarlyStopping(monitor='val_loss', patience=args_dict.pat,
-                  verbose=0, mode='auto')
+    if args_dict.es_metric == 'loss':
 
-mc = ModelCheckpoint(model_name, monitor='val_loss', verbose=0,
-                    save_best_only=True, mode='auto')
+        val_gen = dataloader.generator('val',args_dict.bs)
 
-# reset states after each batch (bcs stateful)
-rs = ResetStatesCallback()
+        model_name = os.path.join(args_dict.data_folder, 'models',
+                                  args_dict.model_name
+                                  +'_weights.{epoch:02d}-{val_loss:.2f}.h5')
 
-#########################
-###  Frozen Convnet   ###
-#########################
+        ep = EarlyStopping(monitor='val_loss', patience=args_dict.pat,
+                          verbose=0, mode='auto')
 
-# get model (frozen convnet)
-model = get_model(args_dict)
-opt = get_opt(args_dict)
+        mc = ModelCheckpoint(model_name, monitor='val_loss', verbose=0,
+                            save_best_only=True, mode='auto')
 
-model.compile(optimizer=opt,loss='categorical_crossentropy',
-              sample_weight_mode="temporal")
+        # reset states after each batch (bcs stateful)
+        rs = ResetStatesCallback()
 
-#if args_dict.es_metric == 'loss':
-model.fit_generator(train_gen,nb_epoch=args_dict.nepochs,
-                        samples_per_epoch=N_train,
-                        validation_data=val_gen,
-                        nb_val_samples=N_val,
-                        callbacks=[mc,ep,rs],
-                        verbose = 1,
-                        nb_worker = args_dict.workers,
-                        pickle_safe = False)
-'''
-else:
+        model.fit_generator(train_gen,nb_epoch=args_dict.nepochs,
+                            samples_per_epoch=N_train,
+                            validation_data=val_gen,
+                            nb_val_samples=N_val,
+                            callbacks=[mc,ep,rs],
+                            verbose = 1,
+                            nb_worker = args_dict.workers,
+                            pickle_safe = False)
 
-    vocab_file = os.path.join(args_dict.data_folder,'data',args_dict.vfile)
-    vocab = pickle.load(open(vocab_file,'rb'))
+    else: # models saved based on other metrics - manual train loop
 
-    for e in range(args_dict.nepochs):
-        samples = 0
-        for x,y,sw in train_gen:
-            model.fit(x=x,y=y,sample_weight=sw,
-                      batch_size=args_dict.bs,callbacks=[rs])
-            train_samples+=args_dict.bs
-            if samples >= N_train:
+        # validation generator in test mode to output image names
+        val_gen = dataloader.generator('val',args_dict.bs,train_flag=False)
+
+        # load vocab to convert captions to words and compute cider
+        vocab_file = os.path.join(args_dict.data_folder,'data',args_dict.vfile)
+        vocab = pickle.load(open(vocab_file,'rb'))
+
+        # init waiting param and best metric values
+        wait = 0
+        best_metric = -np.inf
+
+        for e in range(args_dict.nepochs):
+            print "Epoch %d/%d"%(e+1,args_dict.nepochs)
+            prog = Progbar(target = N_train)
+            samples = 0
+            for x,y,sw in train_gen: # do one epoch
+                loss = model.train_on_batch(x=x,y=y,sample_weight=sw)
+
+                model.reset_states()
+                samples+=args_dict.bs
+                prog.update(current= samples ,values = [('loss',loss)])
+                if samples >= N_train:
+                    break
+
+            # this will save a file with generated captions
+            results_file = gencaps(args_dict,model,val_gen,vocab,N_val)
+            # the ground truth file
+            ann_file = os.path.join(args_dict.coco_path,
+                                    'annotations/captions_val2014.json')
+            # score captions and return requested metric
+            metric = get_metric(args_dict,results_file,ann_file)
+            if metric > best_metric:
+                best_metric = metric
+                wait = 0
+                model_name = os.path.join(args_dict.data_folder, 'models',
+                                          args_dict.model_name
+                                          +'_weights_'+ '.e' + str(e)+ '_'
+                                          + args_dict.es_metric +
+                                          str(metric)+'.h5')
+                model.save_weights(model_name)
+            else:
+                wait+=1
+
+            if wait > args_dict.pat:
                 break
 
-        preds = model.predict_generator(val_gen,steps=(N_val/args_dict.bs))
-        pred_idxs = np.argmax(preds,axis=-1)
-        captions = idx2word(pred_idxs,vocab)
-        for caption in captions:
-            pred_cap = ' '.join(caption[:-1])# exclude eos
-            captions.append({"image_id":imids[0]['id'],
-                            "caption": pred_cap})
+    return model
 
-'''
-#########################
-### Fine Tune ConvNet ###
-#########################
+if __name__ == "__main__":
 
-# init model again, unfreeze convnet, load weights and fine tune
-print "Fine tuning convnet..."
-args_dict.lr /= 100
+    parser = get_parser()
+    args_dict = parser.parse_args()
 
-#model = get_model(args_dict)
-opt = get_opt(args_dict)
+    print (args_dict)
+    print ("="*10)
+    # for reproducibility
+    np.random.seed(args_dict.seed)
+    sys.stdout = open(os.path.join('../logs/',args_dict.model_name+'_train.txt'),"w")
 
-#'/work/asalvador/sat_keras/models/model_weights.10-2.57.h5'
-#model.load_weights(model_name)
+    ###  Frozen Convnet ###
+    model = get_model(args_dict)
+    opt = get_opt(args_dict)
 
-model_name = os.path.join(args_dict.data_folder, 'models',
-                          args_dict.model_name + '_cnn_train'
-                          +'_weights.{epoch:02d}-{val_loss:.2f}.h5')
-mc = ModelCheckpoint(model_name, monitor='val_loss', verbose=0,
-                    save_best_only=True, mode='auto')
+    model.compile(optimizer=opt,loss='categorical_crossentropy',
+                  sample_weight_mode="temporal")
+    model = trainloop(args_dict,model)
 
-for layer in model.layers[1].layers:
-    layer.trainable = True
+    ### Fine Tune ConvNet ###
+    args_dict.lr = args_dict.ftlr
+    opt = get_opt(args_dict)
 
-model.compile(optimizer=opt,loss='categorical_crossentropy',
-              sample_weight_mode="temporal")
+    for layer in model.layers[1].layers:
+        layer.trainable = True
 
-#if args_dict.es_metric == 'loss':
-model.fit_generator(train_gen,nb_epoch=args_dict.nepochs,
-                    samples_per_epoch=N_train,
-                    validation_data=val_gen,
-                    nb_val_samples=N_val,
-                    callbacks=[mc,ep,rs],
-                    verbose = 1,
-                    nb_worker = args_dict.workers,
-                    pickle_safe = False)
+    model.compile(optimizer=opt,loss='categorical_crossentropy',
+                  sample_weight_mode="temporal")
+
+    model = trainloop(args_dict,model)

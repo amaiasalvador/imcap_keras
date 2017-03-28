@@ -6,7 +6,7 @@ def get_parser():
 
     # naming & savefiles
     parser.add_argument('-model_name', dest='model_name',
-                        default = 'resnet',help='Base name to save model')
+                        default = 'resnet_cider',help='Base name to save model')
     parser.add_argument('-h5file', dest='h5file',
                         default = 'datasetv2.h5',
                         help='name of hdf5 file (with extension)')
@@ -59,13 +59,15 @@ def get_parser():
     # Training params
     parser.add_argument('-seed', dest='seed',
                         default = 4242, help='Random seed',type=int)
-    parser.add_argument('-bs',dest='bs', default = 64,
+    parser.add_argument('-bs',dest='bs', default = 100,
                             help='Batch Size',type=int)
     parser.add_argument('-optim',dest='optim', default ='adam',
                                 choices=['adam','SGD','adadelta','adagrad',
                                 'rmsprop'], help='Optimizer')
-    parser.add_argument('-lr',dest='lr', default = 0.001,
+    parser.add_argument('-lr',dest='lr', default = 5e-4,
                                 help='Learning rate',type=float)
+    parser.add_argument('-ftlr',dest='ftlr', default = 1e-5,
+                                help='Learning rate when fine tuning',type=float)
     parser.add_argument('-decay',dest='decay', default = 0.0,
                                 help='LR decay',type=float)
     parser.add_argument('-clip',dest='clip', default = 5.0,
@@ -78,7 +80,10 @@ def get_parser():
                         help='l2 penalty on weights',type=float)
     parser.add_argument('-workers',dest='workers', default = 2,
                         help='Number of data loading threads',type=int)
-
+    parser.add_argument('-es_metric',dest='es_metric', default = 'CIDEr',
+                        help='Early stopping metric',
+                        choices=['loss','CIDEr','Bleu_4','Bleu_3','Bleu_2',
+                                 'Bleu_1','ROUGE_L','METEOR'])
     # flags & bools
     parser.add_argument('-mode', dest='mode',
                         default = 'train',choices=['train','test'],
