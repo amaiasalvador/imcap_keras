@@ -8,7 +8,7 @@ This is a Keras & Tensorflow implementation of a captioning model. In particular
 
 where V are the K local features from the last convolutional layer of a ConvNet (e.g. VGG16), x<sub>t</sub> is the input 
 (composed of the embedding of the previous word and the average image feature). h<sub>t</sub> is the hidden state of the LSTM at time t,
-which is used to compute the attention weights to apply to V in order to obtain the context vector c<sub>t</sub>. c<sub>t</sub> and h<sub>t</sub> are combined to predict the current word y<sub>t</sub>. In (b), an additional gate is incorporated into the LSTM, which gives the additional s<sub>t</sub> output, which is combined with V to compute the attention weights.
+which is used to compute the attention weights to apply to V in order to obtain the context vector c<sub>t</sub>. c<sub>t</sub> and h<sub>t</sub> are combined to predict the current word y<sub>t</sub>. In (b), an additional gate is incorporated into the LSTM to produce the additional s<sub>t</sub> output, which is combined with V to compute the attention weights. s<sub>t</sub> is used as an alternative feature to look at rather than the image features in V.
 
 ## Installation
 
@@ -60,6 +60,10 @@ Run ```sample_captions.ipynb``` to test the trained network on some images and v
   python eval_caps.py -results_file results.json -ann_file gt_file.json
   ``` 
   to get METEOR, Bleu, ROUGE_L & CIDEr scores for the previous json file with generated captions. 
+  
+### On train/val/test splits
+
+For the sake of comparison, data splits have been taken from the [original source code](https://github.com/kelvinxu/arctic-captions) of [Show, Attend and Tell: Neural Image Caption Generation with Visual Attention](http://arxiv.org/abs/1502.03044).
 
 ## References
 
