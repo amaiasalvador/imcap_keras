@@ -13,7 +13,7 @@ parser = get_parser()
 args_dict = parser.parse_args()
 args_dict.mode = 'test'
 args_dict.bs = 1
-args_dict.cnn_train = False
+args_dict.cnn_train = True
 
 model = get_model(args_dict)
 opt = get_opt(args_dict)
@@ -29,7 +29,7 @@ model.compile(optimizer=opt,loss='categorical_crossentropy')
 dataloader = DataLoader(args_dict)
 N_train, N_val, N_test = dataloader.get_dataset_size()
 N = args_dict.bs
-gen = dataloader.generator('test',batch_size=args_dict.bs,train_flag=False) # N samples
+gen = dataloader.generator('test',batch_size=args_dict.bs,train_flag=False)
 captions = []
 num_samples = 0
 print_every = 100
