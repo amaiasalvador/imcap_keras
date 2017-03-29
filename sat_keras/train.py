@@ -26,9 +26,10 @@ def gencaps(args_dict,model,gen,vocab,N_val):
         caps = idx2word(pred_idxs,vocab)
 
         for i,caption in enumerate(caps):
-            pred_cap = ' '.join(caption[:-1])# exclude eos
+
+            pred_cap = ' '.join(caption)# exclude eos
             captions.append({"image_id":imids[i]['id'],
-                            "caption": pred_cap})
+                            "caption": pred_cap.split('<eos>')[0]})
         samples+=args_dict.bs
         if samples >= N_val:
             break
@@ -48,16 +49,15 @@ def get_metric(args_dict,results_file,ann_file):
 
     return cocoEval.eval[args_dict.es_metric]
 
-def trainloop(args_dict,model):
+def trainloop(args_dict,model,suff_name=''):
 
     ## DataLoaders
     dataloader = DataLoader(args_dict)
     N_train, N_val, N_test = dataloader.get_dataset_size()
     train_gen = dataloader.generator('train',args_dict.bs)
+    val_gen = dataloader.generator('val',args_dict.bs)
 
     if args_dict.es_metric == 'loss':
-
-        val_gen = dataloader.generator('val',args_dict.bs)
 
         model_name = os.path.join(args_dict.data_folder, 'models',
                                   args_dict.model_name
@@ -84,12 +84,12 @@ def trainloop(args_dict,model):
     else: # models saved based on other metrics - manual train loop
 
         # validation generator in test mode to output image names
-        val_gen = dataloader.generator('val',args_dict.bs,train_flag=False)
+        val_gen_test = dataloader.generator('val',args_dict.bs,train_flag=False)
 
         # load vocab to convert captions to words and compute cider
         vocab_file = os.path.join(args_dict.data_folder,'data',args_dict.vfile)
         vocab = pickle.load(open(vocab_file,'rb'))
-
+        inv_vocab = {v:k for k,v in vocab.items()}
         # init waiting param and best metric values
         wait = 0
         best_metric = -np.inf
@@ -97,28 +97,42 @@ def trainloop(args_dict,model):
         for e in range(args_dict.nepochs):
             print "Epoch %d/%d"%(e+1,args_dict.nepochs)
             prog = Progbar(target = N_train)
+
             samples = 0
             for x,y,sw in train_gen: # do one epoch
                 loss = model.train_on_batch(x=x,y=y,sample_weight=sw)
-
                 model.reset_states()
+
                 samples+=args_dict.bs
-                prog.update(current= samples ,values = [('loss',loss)])
                 if samples >= N_train:
                     break
+                prog.update(current= samples ,values = [('loss',loss)])
 
+            samples = 0
+            val_losses = []
+            for x,y,sw in val_gen:
+                val_losses.append(model.test_on_batch(x,y,sw))
+                model.reset_states()
+                samples+=args_dict.bs
+                if samples > N_val:
+                    break
+
+            # get val metrics
             # this will save a file with generated captions
-            results_file = gencaps(args_dict,model,val_gen,vocab,N_val)
+            results_file = gencaps(args_dict,model,val_gen_test,inv_vocab,N_val)
             # the ground truth file
             ann_file = os.path.join(args_dict.coco_path,
                                     'annotations/captions_val2014.json')
             # score captions and return requested metric
             metric = get_metric(args_dict,results_file,ann_file)
+            prog.update(current= N_train,
+                        values = [('loss',loss),('val_loss',np.mean(val_losses)),
+                                  (args_dict.es_metric,metric)])
             if metric > best_metric:
                 best_metric = metric
                 wait = 0
                 model_name = os.path.join(args_dict.data_folder, 'models',
-                                          args_dict.model_name
+                                          args_dict.model_name + '_'+ suff_name
                                           +'_weights_'+ '.e' + str(e)+ '_'
                                           + args_dict.es_metric +
                                           str(metric)+'.h5')
@@ -152,6 +166,7 @@ if __name__ == "__main__":
 
     ### Fine Tune ConvNet ###
     args_dict.lr = args_dict.ftlr
+    args_dict.nepochs = args_dict.ftnepochs
     opt = get_opt(args_dict)
 
     for layer in model.layers[1].layers:
@@ -160,4 +175,4 @@ if __name__ == "__main__":
     model.compile(optimizer=opt,loss='categorical_crossentropy',
                   sample_weight_mode="temporal")
 
-    model = trainloop(args_dict,model)
+    model = trainloop(args_dict,model,suff_name='cnn_train')

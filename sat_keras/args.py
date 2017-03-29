@@ -2,7 +2,7 @@ import argparse
 
 def get_parser():
 
-    parser = argparse.ArgumentParser(description='SAT_keras',epilog='The end.')
+    parser = argparse.ArgumentParser(description='Image Captioning in Keras',epilog='Good luck!')
 
     # naming & savefiles
     parser.add_argument('-model_name', dest='model_name',
@@ -59,21 +59,23 @@ def get_parser():
     # Training params
     parser.add_argument('-seed', dest='seed',
                         default = 4242, help='Random seed',type=int)
-    parser.add_argument('-bs',dest='bs', default = 100,
+    parser.add_argument('-bs',dest='bs', default = 64,
                             help='Batch Size',type=int)
     parser.add_argument('-optim',dest='optim', default ='adam',
                                 choices=['adam','SGD','adadelta','adagrad',
                                 'rmsprop'], help='Optimizer')
-    parser.add_argument('-lr',dest='lr', default = 5e-4,
+    parser.add_argument('-lr',dest='lr', default = 1e-2,
                                 help='Learning rate',type=float)
-    parser.add_argument('-ftlr',dest='ftlr', default = 1e-5,
+    parser.add_argument('-ftlr',dest='ftlr', default = 1e-4,
                                 help='Learning rate when fine tuning',type=float)
     parser.add_argument('-decay',dest='decay', default = 0.0,
                                 help='LR decay',type=float)
     parser.add_argument('-clip',dest='clip', default = 5.0,
                         help='Gradient clipping threshold (value)',type=float)
-    parser.add_argument('-nepochs',dest='nepochs', default = 40,
-                        help='Number of train epochs',type=int)
+    parser.add_argument('-nepochs',dest='nepochs', default = 20,
+                        help='Number of train epochs (frozen cnn)',type=int)
+    parser.add_argument('-ftnepochs',dest='ftnepochs', default = 30,
+                        help='Number of train epochs (ft cnn)',type=int)
     parser.add_argument('-pat',dest='pat', default = 5,
                             help='Patience',type=int)
     parser.add_argument('-l2reg',dest='l2reg', default = 1e-8,
