@@ -7,8 +7,8 @@ from args import get_parser
 from utils.dataloader import DataLoader
 from utils.lang_proc import idx2word
 from utils.config import get_opt, ResetStatesCallback
-from cococaption.pycocotools.coco import COCO
-from cococaption.pycocoevalcap.eval import COCOEvalCap
+from coco_caption.pycocotools.coco import COCO
+from coco_caption.pycocoevalcap.eval import COCOEvalCap
 import sys
 import pickle
 import json
