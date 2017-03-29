@@ -135,7 +135,7 @@ def trainloop(args_dict,model,suff_name=''):
                                           args_dict.model_name + '_'+ suff_name
                                           +'_weights_'+ '.e' + str(e)+ '_'
                                           + args_dict.es_metric +
-                                          str(metric)+'.h5')
+                                          "%0.2f"%metric+'.h5')
                 model.save_weights(model_name)
             else:
                 wait+=1
