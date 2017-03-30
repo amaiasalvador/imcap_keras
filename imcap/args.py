@@ -82,6 +82,9 @@ def get_parser():
                         help='l2 penalty on weights',type=float)
     parser.add_argument('-workers',dest='workers', default = 2,
                         help='Number of data loading threads',type=int)
+    parser.add_argument('-es_prev_words',dest='es_prev_words', default = 'gen',
+                        help='Previous words to use for early stopping metric computation',
+                        choices=['gt','gen'])
     parser.add_argument('-es_metric',dest='es_metric', default = 'CIDEr',
                         help='Early stopping metric',
                         choices=['loss','CIDEr','Bleu_4','Bleu_3','Bleu_2',

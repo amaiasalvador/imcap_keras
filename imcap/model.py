@@ -29,8 +29,10 @@ def get_base_model(args_dict):
 
     if dim_ordering == 'th':
         input_shape = (3,args_dict.imsize,args_dict.imsize)
+        input_tensor = Input(batch_shape=(args_dict.bs,3,args_dict.imsize,args_dict.imsize))
     else:
         input_shape = (args_dict.imsize,args_dict.imsize,3)
+        input_tensor = Input(batch_shape=(args_dict.bs,args_dict.imsize,args_dict.imsize,3))
 
     assert args_dict.cnn in {'vgg16','vgg19','resnet'}
 
@@ -42,10 +44,9 @@ def get_base_model(args_dict):
         from keras.applications.resnet50 import ResNet50 as cnn
 
     base_model = cnn(weights='imagenet', include_top=False,
-                           input_shape = input_shape)
-
+                     input_tensor = input_tensor, input_shape = input_shape)
     if args_dict.cnn == 'resnet':
-        return Model(input=base_model.input,output=[base_model.get_layer('activation_49').output])
+        return Model(input=base_model.input,output=[base_model.layers[-2].output])
     else:
         return base_model
 

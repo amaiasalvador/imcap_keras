@@ -42,7 +42,7 @@ for [ims,prevs],caps,imids in gen:
 
     for i in range(args_dict.seqlen):
         # get predictions
-        preds = model.predict([ims,prevs]) #(N,1,vocab_size)
+        preds = model.predict_on_batch([ims,prevs]) #(N,1,vocab_size)
         preds = preds.squeeze()
 
         word_idxs[:,i] = np.argmax(preds,axis=-1)

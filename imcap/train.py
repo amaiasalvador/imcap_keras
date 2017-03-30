@@ -18,13 +18,26 @@ def gencaps(args_dict,model,gen,vocab,N_val):
     Extract and save validation captions for early stopping based on metrics
     '''
     captions = []
-    samples = args_dict.bs
-    for x,y,imids in gen:
-        preds = model.predict_on_batch(x)
-        model.reset_states()
-        pred_idxs = np.argmax(preds,axis=-1)
-        caps = idx2word(pred_idxs,vocab)
+    samples = 0
+    samples += args_dict.bs
+    for [ims,prevs],_,imids in gen:
 
+        if args_dict.es_prev_words == 'gt':
+            preds = model.predict_on_batch([ims,prevs])
+            word_idxs = np.argmax(preds,axis=-1)
+        else:
+            prevs = np.ones((args_dict.bs,1))
+            word_idxs = np.zeros((args_dict.bs,args_dict.seqlen))
+            for i in range(args_dict.seqlen):
+                # get predictions
+                preds = model.predict_on_batch([ims,prevs])
+                preds = preds.squeeze()
+
+                word_idxs[:,i] = np.argmax(preds,axis=-1)
+                prevs = np.argmax(preds,axis=-1)
+                prevs = np.reshape(prevs,(args_dict.bs,1))
+        model.reset_states()
+        caps = idx2word(word_idxs,vocab)
         for i,caption in enumerate(caps):
 
             pred_cap = ' '.join(caption)# exclude eos
@@ -108,6 +121,7 @@ def trainloop(args_dict,model,suff_name=''):
                     break
                 prog.update(current= samples ,values = [('loss',loss)])
 
+            # forward val images to get loss
             samples = 0
             val_losses = []
             for x,y,sw in val_gen:
@@ -117,9 +131,24 @@ def trainloop(args_dict,model,suff_name=''):
                 if samples > N_val:
                     break
 
-            # get val metrics
-            # this will save a file with generated captions
-            results_file = gencaps(args_dict,model,val_gen_test,inv_vocab,N_val)
+            # forward val images to get captions and compute metric
+            # this can either be done with true prev words or gen prev words:
+            # args_dict.es_prev_words to 'gt' or 'gen'
+
+            if args_dict.es_prev_words =='gt':
+                results_file = gencaps(args_dict,model,val_gen_test,inv_vocab,N_val)
+            else:
+                aux_model = os.path.join(args_dict.data_folder, 'models',
+                                         args_dict.model_name +'_aux.h5')
+                model.save_weights(aux_model,overwrite=True)
+                args_dict.mode = 'test' # to have seqlen = 1 and use preds as prev words
+                model_aux = get_model(args_dict)
+                opt = get_opt(args_dict)
+                model_aux.load_weights(aux_model)
+                model_aux.compile(optimizer=opt,loss='categorical_crossentropy',
+                              sample_weight_mode="temporal")
+                results_file = gencaps(args_dict,model_aux,val_gen_test,inv_vocab,N_val)
+                del model_aux
             # the ground truth file
             ann_file = os.path.join(args_dict.coco_path,
                                     'annotations/captions_val2014.json')
@@ -142,6 +171,7 @@ def trainloop(args_dict,model,suff_name=''):
 
             if wait > args_dict.pat:
                 break
+    args_dict.mode = 'train'
 
     return model
 
@@ -167,6 +197,7 @@ if __name__ == "__main__":
     ### Fine Tune ConvNet ###
     args_dict.lr = args_dict.ftlr
     args_dict.nepochs = args_dict.ftnepochs
+    args_dict.cnn_train = True
     opt = get_opt(args_dict)
 
     for layer in model.layers[1].layers:
