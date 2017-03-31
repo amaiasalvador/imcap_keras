@@ -12,7 +12,6 @@ from coco_caption.pycocoevalcap.eval import COCOEvalCap
 import sys
 import pickle
 import json
-import datetime
 
 def gencaps(args_dict,model,gen,vocab,N_val):
     '''
@@ -187,8 +186,7 @@ if __name__ == "__main__":
     np.random.seed(args_dict.seed)
 
     if not args_dict.log_term:
-        timestamp = str(datetime.datetime.now()).replace(" ", "_").replace(":", "")
-        sys.stdout = open(os.path.join('../logs/', args_dict.model_name + timestamp + '_train.log'), "w")
+        sys.stdout = open(os.path.join('../logs/', args_dict.model_name + '_train.log'), "w")
 
     ###  Frozen Convnet ###
     model = get_model(args_dict)
