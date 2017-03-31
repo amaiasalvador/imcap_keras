@@ -105,6 +105,9 @@ def get_parser():
     parser.add_argument('--nosgate', dest='sgate', action='store_false')
     parser.set_defaults(sgate=False)
 
+    parser.add_argument('--log_term', dest='log_term', action='store_true')
+    parser.set_defaults(log_term=False)
+
     return parser
 
 if __name__ =="__main__":

@@ -155,6 +155,8 @@ class LSTM_sent(Recurrent):
         B_W = states[3]
 
         if self.consume_less == 'cpu':
+            #note that the products of B_W and the bias addition have already
+            # been performed on preprocess_input when consume_less is set to 'cpu'
             x_i = x[:, :self.output_dim]
             x_f = x[:, self.output_dim: 2 * self.output_dim]
             x_c = x[:, 2 * self.output_dim: 3 * self.output_dim]
@@ -206,7 +208,14 @@ class LSTM_sent(Recurrent):
             output_shape = (input_shape[0], input_shape[1], self.output_dim)
         else:
             output_shape = (input_shape[0], self.output_dim)
-        return output_shape, output_shape
+        #the hidden state and the sentinel have the same shape
+        return [output_shape, output_shape]
+
+    def compute_mask(self, input, mask):
+        if self.return_sequences:
+            return [mask, mask]
+        else:
+            return [None, None]
 
     def call(self, x, mask=None):
         # input shape: (nb_samples, time (padded with zeros), input_dim)
@@ -240,15 +249,21 @@ class LSTM_sent(Recurrent):
                                              constants=constants,
                                              unroll=self.unroll,
                                              input_length=input_shape[1])
+
+        #we need to reorder the batch position, as the default K.rnn()
+        # assumes that the output is a single tensor.
+
+        outputs = K.permute_dimensions(outputs, [0,2,1,3])
         if self.stateful:
             self.updates = []
             for i in range(len(states)):
                 self.updates.append((self.states[i], states[i]))
 
+        #returns a list where the first element is the hidden state and the second sentinel
         if self.return_sequences:
-            return outputs
+            return [outputs[0], outputs[1]]
         else:
-            return last_output
+            return [last_output[0],last_output[1]]
 
     def get_config(self):
         config = {"output_dim": self.output_dim,

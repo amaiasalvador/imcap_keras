@@ -105,12 +105,7 @@ def get_model(args_dict):
                      dropout_W=args_dict.dr_ratio,dropout_U=args_dict.dr_ratio,
                      W_regularizer = l2(args_dict.l2reg),
                      U_regularizer=l2(args_dict.l2reg), name='hs')
-        hs = lstm_(x)
-
-        h = Lambda(slice_0,output_shape=slice_output_shape,name='h')(hs)
-        h = Reshape((seqlen,args_dict.lstm_dim))(h)
-        s = Lambda(slice_1,output_shape=slice_output_shape,name='s')(hs)
-        s = Reshape((seqlen,args_dict.lstm_dim))(s)
+        h, s = lstm_(x)
 
     else:
         lstm_ = LSTM(args_dict.lstm_dim,return_sequences=True,stateful=True,
