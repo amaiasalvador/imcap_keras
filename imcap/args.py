@@ -64,9 +64,9 @@ def get_parser():
     parser.add_argument('-optim',dest='optim', default ='adam',
                                 choices=['adam','SGD','adadelta','adagrad',
                                 'rmsprop'], help='Optimizer')
-    parser.add_argument('-lr',dest='lr', default = 1e-2,
+    parser.add_argument('-lr',dest='lr', default = 5e-4,
                                 help='Learning rate',type=float)
-    parser.add_argument('-ftlr',dest='ftlr', default = 1e-4,
+    parser.add_argument('-ftlr',dest='ftlr', default = 1e-5,
                                 help='Learning rate when fine tuning',type=float)
     parser.add_argument('-decay',dest='decay', default = 0.0,
                                 help='LR decay',type=float)
@@ -93,16 +93,13 @@ def get_parser():
     parser.add_argument('-mode', dest='mode',
                         default = 'train',choices=['train','test'],
                         help='Model mode')
-    parser.add_argument('--cnnfreeze', dest='cnn_train', action='store_false')
     parser.add_argument('--cnntrain', dest='cnn_train', action='store_true')
     parser.set_defaults(cnn_train=False)
 
-    parser.add_argument('--attlstm', dest='attlstm', action='store_true')
     parser.add_argument('--lstm', dest='attlstm', action='store_false')
     parser.set_defaults(attlstm=True)
 
     parser.add_argument('--sgate', dest='sgate', action='store_true')
-    parser.add_argument('--nosgate', dest='sgate', action='store_false')
     parser.set_defaults(sgate=False)
 
     parser.add_argument('--log_term', dest='log_term', action='store_true')
