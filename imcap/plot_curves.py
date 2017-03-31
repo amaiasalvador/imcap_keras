@@ -63,7 +63,7 @@ if __name__ == "__main__":
     #                          args_dict.model_name +'_history.pkl')
 
 
-    txtfile = os.path.join('../logs/',args_dict.model_name+'_train.txt')
+    txtfile = os.path.join('../logs/',args_dict.model_name+'_train.log')
     lines = read_lines(txtfile)
     plot_curves_parser(lines)
     pngfile = os.path.join('../logs/',args_dict.model_name+'_curves.png')
