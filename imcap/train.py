@@ -161,7 +161,7 @@ def trainloop(args_dict,model,suff_name=''):
                 best_metric = metric
                 wait = 0
                 model_name = os.path.join(args_dict.data_folder, 'models',
-                                          args_dict.model_name + '_'+ suff_name
+                                          args_dict.model_name + suff_name
                                           +'_weights_'+ '.e' + str(e)+ '_'
                                           + args_dict.es_metric +
                                           "%0.2f"%metric+'.h5')
@@ -208,4 +208,4 @@ if __name__ == "__main__":
     model.compile(optimizer=opt,loss='categorical_crossentropy',
                   sample_weight_mode="temporal")
 
-    model = trainloop(args_dict,model,suff_name='cnn_train')
+    model = trainloop(args_dict,model,suff_name='_cnn_train')
