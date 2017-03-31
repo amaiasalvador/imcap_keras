@@ -42,13 +42,13 @@ git clone --recursive https://github.com/amaiasalvador/sat_keras.git
 - After extraction, the dataset folder must have the following structure:
 
 ``` Shell
-$coco/										# dataset dir
-$coco/annotations/							# annotations directory
-$coco/annotations/captions_train2014.json	# caption anns for training set
-$coco/annotations/captions_val2014.json		# ...
-$coco/images/								# image dir
-$coco/images/train2014						# train image dir
-$coco/images/val2014						# ...
+$coco/                                    # dataset dir
+$coco/annotations/                        # annotations directory
+$coco/annotations/captions_train2014.json # caption anns for training set
+$coco/annotations/captions_val2014.json   # ...
+$coco/images/                             # image dir
+$coco/images/train2014                    # train image dir
+$coco/images/val2014                      # ...
 ```
 
 - Prepare data with ```python setup.py -coco_path path/to/coco/dataset```. This involves loading and formatting images and captions to be stored in a single h5 file.
