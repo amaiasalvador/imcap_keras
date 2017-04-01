@@ -188,24 +188,51 @@ if __name__ == "__main__":
     if not args_dict.log_term:
         sys.stdout = open(os.path.join('../logs/', args_dict.model_name + '_train.log'), "w")
 
-    ###  Frozen Convnet ###
-    model = get_model(args_dict)
-    opt = get_opt(args_dict)
+    if not args_dict.model_file: # run all training
 
-    model.compile(optimizer=opt,loss='categorical_crossentropy',
-                  sample_weight_mode="temporal")
-    model = trainloop(args_dict,model)
+        ###  Frozen Convnet ###
+        model = get_model(args_dict)
+        opt = get_opt(args_dict)
 
-    ### Fine Tune ConvNet ###
-    args_dict.lr = args_dict.ftlr
-    args_dict.nepochs = args_dict.ftnepochs
-    args_dict.cnn_train = True
-    opt = get_opt(args_dict)
+        model.compile(optimizer=opt,loss='categorical_crossentropy',
+                      sample_weight_mode="temporal")
 
-    for layer in model.layers[1].layers:
-        layer.trainable = True
+        model = trainloop(args_dict,model)
 
-    model.compile(optimizer=opt,loss='categorical_crossentropy',
-                  sample_weight_mode="temporal")
+        aux_model = os.path.join(args_dict.data_folder, 'models',
+                                 args_dict.model_name +'_aux.h5')
+        model.save_weights(aux_model)
+        del model
 
-    model = trainloop(args_dict,model,suff_name='_cnn_train')
+        ### Fine Tune ConvNet ###
+        args_dict.lr = args_dict.ftlr
+        args_dict.nepochs = args_dict.ftnepochs
+
+        model = get_model(args_dict)
+        model.load_weights(aux_model)
+        opt = get_opt(args_dict)
+
+        for layer in model.layers[1].layers:
+            layer.trainable = True
+
+        model.compile(optimizer=opt,loss='categorical_crossentropy',
+                      sample_weight_mode="temporal")
+
+        model = trainloop(args_dict,model,suff_name='_cnn_train')
+        
+    else: # assumes loading a snapshot with frozen convnet and starts fine tuning it
+        print "Loading snapshot: ", args_dict.model_file
+        args_dict.lr = args_dict.ftlr
+        args_dict.nepochs = args_dict.ftnepochs
+        model = get_model(args_dict)
+        opt = get_opt(args_dict)
+        model.load_weights(args_dict.model_file)
+
+        for layer in model.layers[1].layers:
+            layer.trainable = True
+
+        args_dict.cnn_train = True
+        model.compile(optimizer=opt,loss='categorical_crossentropy',
+                      sample_weight_mode="temporal")
+
+        model = trainloop(args_dict,model,suff_name='_cnn_train')

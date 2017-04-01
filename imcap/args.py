@@ -14,7 +14,7 @@ def get_parser():
                         default = 'vocab.pkl',
                         help='name of vocab file (with extension)')
     parser.add_argument('-model_file', dest='model_file',
-                        default = 'model_file',help='path to model file to load.')
+                        default = None,help='path to model file to load (either for testing or snapshooting).')
 
     # data-related
     parser.add_argument('-num_val',dest='num_val', default = 5000,
