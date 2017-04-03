@@ -78,44 +78,45 @@ def lemmatize_sentence(sentence):
         lem.append(nltk.stem.WordNetLemmatizer().lemmatize(word))
     return lem
 
-def beamsearch(model,image,start=1,eos=2,maxsample=15,k=3,max_keep=200):
+def beamsearch(model,image,vocab_size = 10000, start=1,eos=2,maxsample=20,k=3):
 
-    prevs = np.ones((1,1))
     live_samples  = [[start]]
     live_scores = [0]
     dead_k = 0
     dead_samples = []
     dead_scores = []
-    live_k = 1 # samples that did not yet reached eos
+    live_k = 1 # samples that did not yet reach eos
 
     while live_k and dead_k < k:
-
-        probas = []
+        probas = np.zeros((live_k,vocab_size + 4))
         # for each of the live samples
         for i in range(live_k):
             for j in range(np.shape(live_samples)[1]): #and for all elements in seq
-                prev = np.expand_dims(live_samples[i][j],axis=0)
+                prev = np.expand_dims(np.array([live_samples[i][j]]),axis=0)
                 # feed all samples to model until the last one
-                probs = model.predict([image,prev]).squeeze()
+                probs = model.predict_on_batch([image,prev]).squeeze()
             # the probabilities obtained for the last sample are the kept ones
-            probas.append(probs)
+            probas[i,:] = probs
             model.reset_states() # reset between different sequences
         probas = np.array(probas)
         probas = np.reshape(probas,(live_k,probas.shape[-1]))
 
         # top K with highest probability
-        idxs = np.argsort(probas,axis=-1)[::-1]
-        idxs = idxs[:,:(k-dead_k)].flatten()
-        aux_samples = []
-        aux_scores = []
+        idxs = np.argsort(probas,axis=1)[:,::-1]
 
-        voc_size = probas.shape[-1]*probas.shape[0]
-        for i,idx in enumerate(idxs):
-            aux_samples.append(live_samples[i//k] + [idx])
-            aux_scores.append(live_scores[i//k] + probas[i//k,idx])
-        live_samples = aux_samples
-        live_scores = aux_scores
+        idxs = idxs[:,:(k-dead_k)]
 
+        beam_samples = []
+        beam_scores = []
+        for i in range(idxs.shape[0]):
+
+            for j in range(idxs.shape[1]):
+                idx = idxs[i][j]
+                beam_samples.append(live_samples[i] + [idx])
+                beam_scores.append(live_scores[i] + probas[i,idx])
+
+        live_samples = beam_samples
+        live_scores = beam_scores
          # live samples that should be dead are...
         zombie = [s[-1] == eos or len(s) >= maxsample for s in live_samples]
 
@@ -127,12 +128,10 @@ def beamsearch(model,image,start=1,eos=2,maxsample=15,k=3,max_keep=200):
         live_samples = [s for s,z in zip(live_samples,zombie) if not z]
         live_scores = [s for s,z in zip(live_scores,zombie) if not z]
 
-        if len(live_samples) > max_keep:
-            top_samples = np.argsort(np.array(live_scores))[::-1][:max_keep]
+        if len(live_samples) > k:
+            top_samples = np.argsort(np.array(live_scores))[::-1][:k]
             live_samples = np.array(live_samples)[top_samples].tolist()
             live_scores = np.array(live_scores)[top_samples].tolist()
         live_k = len(live_samples)
-        if live_k > 0:
-            prevs = np.array(live_samples)[:,-1]
 
     return dead_samples + live_samples, dead_scores + live_scores

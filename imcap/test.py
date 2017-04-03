@@ -36,24 +36,37 @@ print_every = 100
 t = time.time()
 for [ims,prevs],caps,imids in gen:
 
-    # greedy caps
-    prevs = np.ones((N,1))
-    word_idxs = np.zeros((N,args_dict.seqlen))
+    if args_dict.bsize > 1:
 
-    for i in range(args_dict.seqlen):
-        # get predictions
-        preds = model.predict_on_batch([ims,prevs]) #(N,1,vocab_size)
-        preds = preds.squeeze()
+        # beam search
+        word_idxs = np.zeros((args_dict.bsize,args_dict.seqlen))
+        word_idxs[:,:] = 2
+        ### beam search caps ###
+        seqs,scores = beamsearch(model=model,image=ims,
+                                 vocab_size = args_dict.vocab_size,
+                                 start=1,eos=2,maxsample=args_dict.seqlen,
+                                 k=args_dict.bsize)
 
-        word_idxs[:,i] = np.argmax(preds,axis=-1)
-        prevs = np.argmax(preds,axis=-1)
-        prevs = np.reshape(prevs,(N,1))
+        seqs = np.array(seqs)[np.argsort(scores)[::-1][:args_dict.bsize]]
+        for i,seq in enumerate(seqs):
+            word_idxs[i,:len(seq)-1] = seq[1:] # start token
+
+    else:
+        # greedy caps
+        prevs = np.ones((N,1))
+        word_idxs = np.zeros((N,args_dict.seqlen))
+
+        for i in range(args_dict.seqlen):
+            # get predictions
+            preds = model.predict_on_batch([ims,prevs]) #(N,1,vocab_size)
+            preds = preds.squeeze()
+
+            word_idxs[:,i] = np.argmax(preds,axis=-1)
+            prevs = np.argmax(preds,axis=-1)
+            prevs = np.reshape(prevs,(N,1))
 
     pred_caps = idx2word(word_idxs,inv_vocab)
-    #true_caps = idx2word(np.argmax(caps,axis=-1),inv_vocab)
-
     pred_cap = ' '.join(pred_caps[0][:-1])# exclude eos
-    #true_cap = ' '.join(true_caps[0][:-1])
 
     captions.append({"image_id":imids[0]['id'],
                     "caption": pred_cap})
@@ -71,26 +84,3 @@ results_file = os.path.join(args_dict.data_folder, 'results',
 with open(results_file, 'w') as outfile:
     json.dump(captions, outfile)
 print "Saved results in", results_file
-
-'''
-    ### beam search caps ###
-    seqs,scores = beamsearch(model,ims)
-    top_N = 10
-    top_10 = np.argsort(np.array(scores))[::-1][:top_N]
-    top_caps = np.array(seqs)[top_10]
-
-    pred_caps = idx2word(top_caps,inv_vocab)
-    true_caps = idx2word(np.argmax(caps,axis=-1),inv_vocab)
-
-    # true caption
-    print ("ID:", imids[0]['file_name'])
-    true_cap = ' '.join(true_caps[0])
-    print ("True:", true_cap)
-
-    for i in range(top_N):
-        pred_cap = ' '.join(pred_caps[i])
-        print ("Gen:", pred_cap)
-        print ("-"*10)
-    print "="*10
-    model.reset_states()
-'''

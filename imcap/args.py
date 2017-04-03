@@ -66,11 +66,11 @@ def get_parser():
                                 'rmsprop'], help='Optimizer')
     parser.add_argument('-lr',dest='lr', default = 5e-4,
                                 help='Learning rate',type=float)
-    parser.add_argument('-ftlr',dest='ftlr', default = 1e-5,
+    parser.add_argument('-ftlr',dest='ftlr', default = 5e-4,
                                 help='Learning rate when fine tuning',type=float)
     parser.add_argument('-decay',dest='decay', default = 0.0,
                                 help='LR decay',type=float)
-    parser.add_argument('-clip',dest='clip', default = 5.0,
+    parser.add_argument('-clip',dest='clip', default = -1,
                         help='Gradient clipping threshold (value)',type=float)
     parser.add_argument('-nepochs',dest='nepochs', default = 20,
                         help='Number of train epochs (frozen cnn)',type=int)
@@ -78,7 +78,7 @@ def get_parser():
                         help='Number of train epochs (ft cnn)',type=int)
     parser.add_argument('-pat',dest='pat', default = 5,
                             help='Patience',type=int)
-    parser.add_argument('-l2reg',dest='l2reg', default = 1e-8,
+    parser.add_argument('-l2reg',dest='l2reg', default = 0.0,
                         help='l2 penalty on weights',type=float)
     parser.add_argument('-workers',dest='workers', default = 2,
                         help='Number of data loading threads',type=int)
@@ -89,6 +89,9 @@ def get_parser():
                         help='Early stopping metric',
                         choices=['loss','CIDEr','Bleu_4','Bleu_3','Bleu_2',
                                  'Bleu_1','ROUGE_L','METEOR'])
+
+    parser.add_argument('-bsize',dest='bsize', default = 1,
+                        help='Beam size',type=int)
     # flags & bools
     parser.add_argument('-mode', dest='mode',
                         default = 'train',choices=['train','test'],
