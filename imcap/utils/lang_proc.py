@@ -14,7 +14,7 @@ def sample(preds, temperature=1.0):
     exp_preds = np.exp(preds)
     preds = exp_preds / np.sum(exp_preds)
     probas = np.random.multinomial(1, preds, 1)
-    return np.argmax(probas)
+    return probas
 
 def idx2word(idxs,vocab):
 

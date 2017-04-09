@@ -68,7 +68,7 @@ Run ```python train.py```. Run ```python args.py --help``` for a list of the ava
 
 ### Testing
 
-- Run ```python test.py``` to forward all validation images through a trained network and create json file with results.
+- Run ```python test.py``` to forward all validation images through a trained network and create json file with results. Use ```--cnntrain``` flag if evaluating a model with fine tuned convnet.
 - Navigate to ```./imcap/coco_caption/```. 
 - From there run: 
   ```
@@ -83,7 +83,7 @@ For the sake of comparison, data splits have been taken from the [original sourc
 ## References
 
 - Xu et al. [Show, Attend and Tell: Neural Image Caption Generation with Visual Attention.](http://www.jmlr.org/proceedings/papers/v37/xuc15.pdf) ICML 2015.
-- Lu et al. [Knowing When to Look: Adaptive Attention via A Visual Sentinel for Image Captioning](https://arxiv.org/abs/1612.01887)
+- Lu et al. [Knowing When to Look: Adaptive Attention via A Visual Sentinel for Image Captioning](https://arxiv.org/abs/1612.01887). CVPR 2017 (original code [here](https://github.com/jiasenlu/AdaptiveAttention)).
 - Caption evaluation code from [this repository](https://github.com/tylin/coco-caption).
 
 ## Contact

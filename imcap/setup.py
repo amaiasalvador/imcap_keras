@@ -23,7 +23,6 @@ args_dict = parser.parse_args()
 make_dir(os.path.join(args_dict.data_folder))
 make_dir(os.path.join(args_dict.data_folder,'data'))
 make_dir(os.path.join(args_dict.data_folder,'models'))
-make_dir(os.path.join(args_dict.data_folder,'history'))
 make_dir(os.path.join(args_dict.data_folder,'results'))
 make_dir('../logs')
 
@@ -36,11 +35,8 @@ if not os.path.isfile(vocab_file):
     words = topK(anns,args_dict)
     word2class = create_dict(words)
     print (len(word2class), 'most common words selected.')
-    print('a',word2class['a'])
-    print('kitchen',word2class['kitchen'])
     with open(vocab_file,'wb') as f:
         pickle.dump(word2class,f)
-
     print ('Done.')
 
 dataloader = DataLoader(args_dict)

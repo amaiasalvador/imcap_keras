@@ -6,7 +6,7 @@ def get_parser():
 
     # naming & savefiles
     parser.add_argument('-model_name', dest='model_name',
-                        default = 'resnet_cider',help='Base name to save model')
+                        default = 'model',help='Base name to save model')
     parser.add_argument('-h5file', dest='h5file',
                         default = 'datasetv2.h5',
                         help='name of hdf5 file (with extension)')
@@ -50,7 +50,7 @@ def get_parser():
     parser.add_argument('-lstm_dim',dest='lstm_dim', default = 512,
                         help='Number of LSTM units',type=int)
     parser.add_argument('-emb_dim',dest='emb_dim', default = 512,
-                        help='Word embedding dim',type=int)
+                        help='Word embedding & image feat dim',type=int)
     parser.add_argument('-z_dim',dest='z_dim', default = 512,
                         help='Dimensionality of z space',type=int)
     parser.add_argument('-dr_ratio',dest='dr_ratio', default = 0.5,
@@ -58,28 +58,30 @@ def get_parser():
 
     # Training params
     parser.add_argument('-seed', dest='seed',
-                        default = 4242, help='Random seed',type=int)
+                        default = 123, help='Random seed',type=int)
     parser.add_argument('-bs',dest='bs', default = 64,
                             help='Batch Size',type=int)
     parser.add_argument('-optim',dest='optim', default ='adam',
                                 choices=['adam','SGD','adadelta','adagrad',
                                 'rmsprop'], help='Optimizer')
+    parser.add_argument('-alpha',dest='alpha', default = 0.8,
+                                help='Adams alpha',type=float)
+    parser.add_argument('-beta',dest='beta', default = 0.999,
+                                help='Adams beta',type=float)
     parser.add_argument('-lr',dest='lr', default = 5e-4,
                                 help='Learning rate',type=float)
-    parser.add_argument('-ftlr',dest='ftlr', default = 5e-4,
+    parser.add_argument('-ftlr',dest='ftlr', default = 1e-5,
                                 help='Learning rate when fine tuning',type=float)
     parser.add_argument('-decay',dest='decay', default = 0.0,
                                 help='LR decay',type=float)
-    parser.add_argument('-clip',dest='clip', default = -1,
+    parser.add_argument('-clip',dest='clip', default = 5,
                         help='Gradient clipping threshold (value)',type=float)
     parser.add_argument('-nepochs',dest='nepochs', default = 20,
                         help='Number of train epochs (frozen cnn)',type=int)
     parser.add_argument('-ftnepochs',dest='ftnepochs', default = 30,
                         help='Number of train epochs (ft cnn)',type=int)
-    parser.add_argument('-pat',dest='pat', default = 5,
+    parser.add_argument('-pat',dest='pat', default = 6,
                             help='Patience',type=int)
-    parser.add_argument('-l2reg',dest='l2reg', default = 0.0,
-                        help='l2 penalty on weights',type=float)
     parser.add_argument('-workers',dest='workers', default = 2,
                         help='Number of data loading threads',type=int)
     parser.add_argument('-es_prev_words',dest='es_prev_words', default = 'gen',
@@ -92,6 +94,8 @@ def get_parser():
 
     parser.add_argument('-bsize',dest='bsize', default = 1,
                         help='Beam size',type=int)
+    parser.add_argument('-temperature',dest='temperature', default = 0.5,
+                        help='Sampling temperature',type=int)
     # flags & bools
     parser.add_argument('-mode', dest='mode',
                         default = 'train',choices=['train','test'],

@@ -9,7 +9,9 @@ def get_opt(args_dict):
         opt = SGD(lr=args_dict.lr, decay=args_dict.decay, momentum=0.9, nesterov=True,
                  clipvalue= args_dict.clip)
     elif opt_name is 'adam':
-        opt = Adam(lr=args_dict.lr, decay= args_dict.decay,clipvalue = args_dict.clip)
+        opt = Adam(lr=args_dict.lr, beta_1 = args_dict.alpha,
+                   beta_2 = args_dict.beta,
+                   decay= args_dict.decay,clipvalue = args_dict.clip)
     elif opt_name is 'adadelta':
         opt = Adadelta(lr=args_dict.lr, decay=args_dict.decay, clipvalue = args_dict.clip)
     elif opt_name is 'adagrad':

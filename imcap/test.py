@@ -13,7 +13,6 @@ parser = get_parser()
 args_dict = parser.parse_args()
 args_dict.mode = 'test'
 args_dict.bs = 1
-args_dict.cnn_train = True
 
 model = get_model(args_dict)
 opt = get_opt(args_dict)
@@ -60,6 +59,8 @@ for [ims,prevs],caps,imids in gen:
             # get predictions
             preds = model.predict_on_batch([ims,prevs]) #(N,1,vocab_size)
             preds = preds.squeeze()
+            if args_dict.temperature > 0:
+                preds = sample(preds,temperature=args_dict.temperature)
 
             word_idxs[:,i] = np.argmax(preds,axis=-1)
             prevs = np.argmax(preds,axis=-1)
