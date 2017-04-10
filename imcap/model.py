@@ -92,10 +92,10 @@ def get_model(args_dict):
     # project to z_space
     Vi = TimeDistributed(Dense(args_dict.z_dim,activation='relu'),name='Vi')(V)
     Vi = Dropout(args_dict.dr_ratio)(Vi)
-
+    Vi = BatchNormalization()(Vi)
     # embed
     Vi_emb = TimeDistributed(Dense(args_dict.emb_dim),name='Vi_emb')(Vi)
-
+    Vi_emb = BatchNormalization()(Vi_emb)
     # repeat average feat as many times as seqlen to infer output size
     x = RepeatVector(seqlen)(Vg) # seqlen,512
 
@@ -140,26 +140,30 @@ def get_model(args_dict):
 
         # embed ht vectors.
         # linear used as input to final classifier, embedded ones are used to compute attention
-        h = BatchNormalization()(h)
+
         h_out_linear = TimeDistributed(Dense(args_dict.z_dim,activation='tanh'),name='zh_linear')(h)
         h_out_linear = Dropout(args_dict.dr_ratio)(h_out_linear)
+        h_out_linear = BatchNormalization()(h_out_linear)
         h_out_embed = TimeDistributed(Dense(args_dict.emb_dim),name='zh_embed')(h_out_linear)
-
+        h_out_embed = BatchNormalization()(h_out_embed)
         # repeat all h vectors as many times as local feats in v
         z_h_embed = TimeDistributed(RepeatVector(num_vfeats))(h_out_embed)
 
         if args_dict.sgate:
 
             # embed sentinel vec
-            s = BatchNormalization()(s)
+
             # linear used as additional feat to apply attention, embedded used as add. feat to compute attention
             fake_feat = TimeDistributed(Dense(args_dict.z_dim,activation='relu'),name='zs_linear')(s)
             fake_feat = Dropout(args_dict.dr_ratio)(fake_feat)
-
+            fake_feat = BatchNormalization()(fake_feat)
+            
             fake_feat_embed = TimeDistributed(Dense(args_dict.emb_dim),name='zs_embed')(fake_feat)
             # reshape for merging with visual feats
             z_s_linear = Reshape((seqlen,1,args_dict.z_dim))(fake_feat)
             z_s_embed = Reshape((seqlen,1,args_dict.emb_dim))(fake_feat_embed)
+            z_s_linear = BatchNormalization()(z_s_linear)
+            z_s_embed = BatchNormalization()(z_s_embed)
 
             # concat fake feature to the rest of image features
             z_v_linear = Merge(mode='concat',concat_axis=-2)([z_v_linear,z_s_linear])
