@@ -41,7 +41,7 @@ def load_caps(args_dict):
 
     return anns['annotations']
 
-def topK(anns,args_dict):
+def topK(anns):
 
     all_words = []
     maxlen = 0
@@ -59,17 +59,18 @@ def topK(anns,args_dict):
     print('Average length:',avglen/i)
     print('Max length:',maxlen)
     fdist = nltk.FreqDist(all_words)
-    topk_words = fdist.most_common(args_dict.vocab_size)
+    topk_words = fdist.most_common()
     return topk_words
 
-def create_dict(topk_words):
+def create_dict(topk_words,min_occ):
 
-    word2class = {'<start>':1,'<eos>':2,'<unk>':3}
-    p = 4
+    word2class = {'<start>':0,'<eos>':1,'<unk>':2}
+    p = 3
     for word in topk_words:
+        if word[1] < min_occ: #words with less than 5 occurrences discarded
+            break
         word2class[word[0]] = p
         p+=1
-
     return word2class
 
 def lemmatize_sentence(sentence):
@@ -78,7 +79,7 @@ def lemmatize_sentence(sentence):
         lem.append(nltk.stem.WordNetLemmatizer().lemmatize(word))
     return lem
 
-def beamsearch(model,image,vocab_size = 10000, start=1,eos=2,maxsample=20,k=3):
+def beamsearch(model,image,vocab_size = 10000, start=0,eos=1,maxsample=3,k=3):
 
     live_samples  = [[start]]
     live_scores = [0]
@@ -88,7 +89,7 @@ def beamsearch(model,image,vocab_size = 10000, start=1,eos=2,maxsample=20,k=3):
     live_k = 1 # samples that did not yet reach eos
 
     while live_k and dead_k < k:
-        probas = np.zeros((live_k,vocab_size + 4))
+        probas = np.zeros((live_k,vocab_size))
         # for each of the live samples
         for i in range(live_k):
             for j in range(np.shape(live_samples)[1]): #and for all elements in seq

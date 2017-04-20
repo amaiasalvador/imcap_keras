@@ -24,6 +24,8 @@ make_dir(os.path.join(args_dict.data_folder))
 make_dir(os.path.join(args_dict.data_folder,'data'))
 make_dir(os.path.join(args_dict.data_folder,'models'))
 make_dir(os.path.join(args_dict.data_folder,'results'))
+make_dir(os.path.join(args_dict.data_folder,'tmp'))
+
 make_dir('../logs')
 
 vocab_file = os.path.join(args_dict.data_folder,'data',args_dict.vfile)
@@ -32,9 +34,9 @@ if not os.path.isfile(vocab_file):
     print ('Creating word dictionary...')
     # loads training set only
     anns = load_caps(args_dict)
-    words = topK(anns,args_dict)
-    word2class = create_dict(words)
-    print (len(word2class), 'most common words selected.')
+    words = topK(anns)
+    word2class = create_dict(words,args_dict.min_occ)
+    print len(word2class), 'most common words selected. Set num_classes in args.py to equal this number.'
     with open(vocab_file,'wb') as f:
         pickle.dump(word2class,f)
     print ('Done.')
@@ -51,9 +53,9 @@ print ("Testing dataset...")
 
 train_gen = dataloader.generator('train',10)
 
-for [ims,prev_cap],caps,sw in train_gen:
+for [ims,prevs],caps,sw in train_gen:
 
     print ("images",np.shape(ims))
     print ("captions (onehot)",np.shape(caps))
-    print ("prev words (idx)",np.shape(prev_cap))
+    print ("prev words (idx)",np.shape(prevs))
     break
