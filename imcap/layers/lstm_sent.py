@@ -62,7 +62,7 @@ class LSTM_sent(Recurrent):
 
     def build(self, input_shape):
         self.input_spec = [InputSpec(shape=input_shape)]
-        input_dim = input_shape[2]
+        #input_dim = input_shape[2]
         input_dim = self.output_dim
         self.input_dim = input_dim
 
@@ -133,11 +133,13 @@ class LSTM_sent(Recurrent):
         if hasattr(self, 'states'):
             K.set_value(self.states[0],
                         np.zeros((input_shape[0], self.output_dim)))
-            K.set_value(self.states[1],
-                        np.zeros((input_shape[0], self.output_dim)))
+            if self.sentinel:
+                K.set_value(self.states[1],
+                            np.zeros((input_shape[0], self.output_dim)))
         else:
-            self.states = [K.zeros((input_shape[0], self.output_dim)),
-                           K.zeros((input_shape[0], self.output_dim))]
+            self.states = [K.zeros((input_shape[0], self.output_dim))]
+            if self.sentinel:
+                self.states.append(K.zeros((input_shape[0], self.output_dim)))
 
     def preprocess_input(self, x, train=False):
         if self.consume_less == 'cpu':
@@ -146,7 +148,7 @@ class LSTM_sent(Recurrent):
             else:
                 dropout = 0
             input_shape = self.input_spec[0].shape
-            input_dim = input_shape[2]
+            #input_dim = input_shape[2]
             input_dim = self.output_dim
             timesteps = input_shape[1]
 
