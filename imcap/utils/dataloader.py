@@ -40,11 +40,8 @@ class DataLoader(object):
 
         self.data_folder = args_dict.data_folder
         self.coco = args_dict.coco_path
-        self.num_val = args_dict.num_val
-        self.num_test = args_dict.num_test
         self.h5file = args_dict.h5file
         self.year = args_dict.year
-        self.resize = args_dict.resize
         self.imsize = args_dict.imsize
         self.seqlen = args_dict.seqlen
         self.n_caps = args_dict.n_caps
@@ -87,13 +84,9 @@ class DataLoader(object):
         for i,im in enumerate(ims):
             imname2idx[im['file_name']] = i
 
-        # val: first 5k val images, test: second 5k images
         if partition == 'test' or partition == 'val':
             filenames = self.get_split(partition)
             ims = [ims[imname2idx[x]] for x in filenames]
-            #ims = ims[self.num_val:self.num_val + self.num_test]
-        #elif partition == 'val':
-        #    ims = ims[0:self.num_val]
 
         # dictionary mapping image id with the list of N captions for that image
         imid2caps = {}
@@ -139,7 +132,7 @@ class DataLoader(object):
         Reads dataset (images & captions) and stores it in a HDF5 file
         '''
 
-        with h5py.File(os.path.join(self.data_folder,'data',self.h5file)) as f_ds:
+        with h5py.File(os.path.join(self.data_folder,'data',self.h5file),'w') as f_ds:
 
             for part in ['test','val','train']:
                 # offline test set included in validation set
@@ -170,11 +163,7 @@ class DataLoader(object):
 
                     img = read_image(os.path.join(ims_path,filename),
                                     (self.imsize,self.imsize))
-                    '''
-                    img = process_image(os.path.join(ims_path,filename),
-                                            self.resize)
-                    img = center_crop(img, self.imsize)
-                    '''
+
                     idata[i,:,:,:] = img
                     cdata[i,:,:] = caps_labels
 
@@ -256,13 +245,13 @@ class DataLoader(object):
                 sample_weight[batch_caps>0] = 1
 
                 # for current words (to be predicted), we need to pass one-hot vecs
-                batch_caps = to_categorical(batch_caps,self.vocab_size + 4)
+                batch_caps = to_categorical(batch_caps,self.vocab_size)
                 batch_caps = np.reshape(batch_caps,(bs,self.seqlen,
-                                        self.vocab_size + 4))
+                                        self.vocab_size))
 
                 # during testing we don't return previous words(they will be
                 # generated instead), and return image ids.
                 if train_flag:
                     yield [batch_ims,prev_caps],batch_caps,sample_weight
                 else:
-                    yield [batch_ims,prev_caps],batch_caps,np.array(imlist)[batch_idxs]
+                    yield [batch_ims,prev_caps],batch_caps,sample_weight, np.array(imlist)[batch_idxs]
