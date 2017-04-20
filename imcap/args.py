@@ -8,19 +8,15 @@ def get_parser():
     parser.add_argument('-model_name', dest='model_name',
                         default = 'model',help='Base name to save model')
     parser.add_argument('-h5file', dest='h5file',
-                        default = 'datasetv2.h5',
+                        default = 'dataset.h5',
                         help='name of hdf5 file (with extension)')
     parser.add_argument('-vfile', dest='vfile',
-                        default = 'vocab.pkl',
+                        default = 'voc.pkl',
                         help='name of vocab file (with extension)')
     parser.add_argument('-model_file', dest='model_file',
                         default = None,help='path to model file to load (either for testing or snapshooting).')
 
     # data-related
-    parser.add_argument('-num_val',dest='num_val', default = 5000,
-                        help='Number of validation images',type=int)
-    parser.add_argument('-num_test',dest='num_test', default = 5000,
-                        help='Number of test images',type=int)
     parser.add_argument('-coco_path', dest='coco_path',
                         default = '/seq/segmentation/COCO/tools',
                         help='COCO database')
@@ -29,30 +25,30 @@ def get_parser():
     parser.add_argument('-data_folder', dest='data_folder',
                         default = '/work/asalvador/sat_keras/',
                         help='save folder')
+    parser.add_argument('-min_occ',dest='min_occ', default = 5,
+                        help='Min number of occurrences to use a word',type=int)
 
     # model parts, inputs
     parser.add_argument('-cnn', dest='cnn',
                         default = 'resnet', choices=['vgg16','vgg19','resnet'],
                         help='Pretrained CNN to use')
-    parser.add_argument('-resize', dest='resize',
-                        default = 256, help='Image resize',type=int)
     parser.add_argument('-imsize', dest='imsize',
-                        default = 224, help='Image crop size',type=int)
+                        default = 224, help='Image size',type=int)
     parser.add_argument('-vocab_size', dest='vocab_size',
-                        default = 10000, help='Vocabulary size' ,type=int)
+                        default = 8855, help='Vocabulary size' ,type=int)
     parser.add_argument('-n_caps', dest='n_caps',
                         default = 5, help='Number of captions for training',
                         type=int)
 
     # Model parameters
-    parser.add_argument('-seqlen',dest='seqlen', default = 20,
+    parser.add_argument('-seqlen',dest='seqlen', default = 18,
                         help='Maximum sentence length',type=int)
     parser.add_argument('-lstm_dim',dest='lstm_dim', default = 512,
                         help='Number of LSTM units',type=int)
     parser.add_argument('-emb_dim',dest='emb_dim', default = 512,
-                        help='Word embedding & image feat dim',type=int)
+                        help='Embedding dim to input lstm',type=int)
     parser.add_argument('-z_dim',dest='z_dim', default = 512,
-                        help='Dimensionality of z space',type=int)
+                        help='Dimensionality of z space (att operations)',type=int)
     parser.add_argument('-dr_ratio',dest='dr_ratio', default = 0.5,
                         help='Dropout ratio',type=int)
 
@@ -80,12 +76,11 @@ def get_parser():
                         help='Number of train epochs (frozen cnn)',type=int)
     parser.add_argument('-ftnepochs',dest='ftnepochs', default = 30,
                         help='Number of train epochs (ft cnn)',type=int)
-    parser.add_argument('-pat',dest='pat', default = 6,
+    parser.add_argument('-pat',dest='pat', default = 4,
                             help='Patience',type=int)
     parser.add_argument('-workers',dest='workers', default = 2,
                         help='Number of data loading threads',type=int)
     parser.add_argument('-es_prev_words',dest='es_prev_words', default = 'gen',
-                        help='Previous words to use for early stopping metric computation',
                         choices=['gt','gen'])
     parser.add_argument('-es_metric',dest='es_metric', default = 'CIDEr',
                         help='Early stopping metric',
@@ -94,8 +89,8 @@ def get_parser():
 
     parser.add_argument('-bsize',dest='bsize', default = 1,
                         help='Beam size',type=int)
-    parser.add_argument('-temperature',dest='temperature', default = 0.5,
-                        help='Sampling temperature',type=int)
+    parser.add_argument('-temperature',dest='temperature', default = -1,
+                        help='Sampling temperature',type=float)
     # flags & bools
     parser.add_argument('-mode', dest='mode',
                         default = 'train',choices=['train','test'],
@@ -112,6 +107,10 @@ def get_parser():
     parser.add_argument('--log_term', dest='log_term', action='store_true')
     parser.set_defaults(log_term=False)
 
+    parser.add_argument('--dr',dest='dr', action ='store_true')
+    parser.add_argument('--bn',dest='bn', action ='store_true')
+    parser.set_defaults(dr=False)
+    parser.set_defaults(bn=False)
     return parser
 
 if __name__ =="__main__":

@@ -1,8 +1,4 @@
 from keras.layers.recurrent import *
-from keras.models import Sequential, Model
-from keras.layers import Input, Lambda, Dense
-from keras.layers.wrappers import TimeDistributed
-from keras.regularizers import l2
 
 class LSTM_sent(Recurrent):
     """
@@ -11,13 +7,44 @@ class LSTM_sent(Recurrent):
               Adaptive Attention via A Visual Sentinel for Image Captioning
     https://arxiv.org/abs/1612.01887
     Outputs the hidden state and the output of the sentinel gate.
+
+    Input is a sequence where each timestep is the sum of the embedding
+    of the previous word, and the average image feature. These should have been
+    previously embedded separately into a space of dimensionality
+    N*lstm_dim. N is the number of LSTM gates (5 when using sentinel, 4 for
+    normal LSTM). lstm_dim is the output dimension of the LSTM. This is a
+    workaround in order to have an LSTM with two separate inputs.
+    This layer will take the input and slice it in N chunks to assign as inputs
+    for each one of the LSTM gates.
+
+    Usage example:
+
+    lstm_dim = 512
+    prev_words = ... # word idxs
+    emb = Embedding(...)(prev_words)
+    emb = TimeDistributed(Dense(5*lstm_dim))(emb)
+
+    im = ... # image input
+    im_feats = convnet_x(image) # get features using some convnet
+    im_feats = RepeatVector(...)(imfeats) # repeat feats as many times as seqlen
+
+
+    im_feats = TimeDistributed(Dense(5*lstm_dim))(im_feats)
+
+    lstm_in = Merge(mode='sum')([im_feats,emb])
+
+    h,s = LSTM_sent(output_dim = lstm_dim,sentinel = True)(lstm_in)
+
+    # in this case the last positions of the input are ignored
+    h = LSTM_sent(output_dim = lstm_dim,sentinel = False)(lstm_in)
+
     """
     def __init__(self, output_dim,
                  init='glorot_uniform', inner_init='orthogonal',
                  forget_bias_init='one', activation='tanh',
                  inner_activation='hard_sigmoid',
                  W_regularizer=None, U_regularizer=None, b_regularizer=None,
-                 dropout_W=0., dropout_U=0., **kwargs):
+                 dropout_W=0., dropout_U=0., sentinel=True, **kwargs):
         self.output_dim = output_dim
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
@@ -28,7 +55,7 @@ class LSTM_sent(Recurrent):
         self.U_regularizer = regularizers.get(U_regularizer)
         self.b_regularizer = regularizers.get(b_regularizer)
         self.dropout_W, self.dropout_U = dropout_W, dropout_U
-
+        self.sentinel = sentinel
         if self.dropout_W or self.dropout_U:
             self.uses_learning_phase = True
         super(LSTM_sent, self).__init__(**kwargs)
@@ -36,13 +63,17 @@ class LSTM_sent(Recurrent):
     def build(self, input_shape):
         self.input_spec = [InputSpec(shape=input_shape)]
         input_dim = input_shape[2]
+        input_dim = self.output_dim
         self.input_dim = input_dim
 
         if self.stateful:
             self.reset_states()
         else:
-            # initial states: 2 all-zero tensors of shape (output_dim)
-            self.states = [None, None]
+            if self.sentinel:
+                # initial states: 2 all-zero tensors of shape (output_dim)
+                self.states = [None, None]
+            else:
+                self.states = [None]
 
         self.W_i = self.init((input_dim, self.output_dim),
                              name='{}_W_i'.format(self.name))
@@ -69,41 +100,25 @@ class LSTM_sent(Recurrent):
                                    name='{}_U_o'.format(self.name))
         self.b_o = K.zeros((self.output_dim,), name='{}_b_o'.format(self.name))
 
-        # sentinel gate
-        self.W_g = self.init((input_dim, self.output_dim),
-                             name='{}_W_g'.format(self.name))
-        self.U_g = self.inner_init((self.output_dim, self.output_dim),
-                                   name='{}_U_g'.format(self.name))
-        self.b_g = K.zeros((self.output_dim,), name='{}_b_g'.format(self.name))
+        if self.sentinel:
+            # sentinel gate
+            self.W_g = self.init((input_dim, self.output_dim),
+                                 name='{}_W_g'.format(self.name))
+            self.U_g = self.inner_init((self.output_dim, self.output_dim),
+                                       name='{}_U_g'.format(self.name))
+            self.b_g = K.zeros((self.output_dim,), name='{}_b_g'.format(self.name))
 
-        self.regularizers = []
-        if self.W_regularizer:
-            self.W_regularizer.set_param(K.concatenate([self.W_i,
-                                                        self.W_f,
-                                                        self.W_c,
-                                                        self.W_o,
-                                                        self.W_g]))
-            self.regularizers.append(self.W_regularizer)
-        if self.U_regularizer:
-            self.U_regularizer.set_param(K.concatenate([self.U_i,
-                                                        self.U_f,
-                                                        self.U_c,
-                                                        self.U_o,
-                                                        self.U_g]))
-            self.regularizers.append(self.U_regularizer)
-        if self.b_regularizer:
-            self.b_regularizer.set_param(K.concatenate([self.b_i,
-                                                        self.b_f,
-                                                        self.b_c,
-                                                        self.b_o,
-                                                        self.b_g]))
-            self.regularizers.append(self.b_regularizer)
 
-        self.trainable_weights = [self.W_i, self.U_i, self.b_i,
-                                  self.W_c, self.U_c, self.b_c,
-                                  self.W_f, self.U_f, self.b_f,
-                                  self.W_o, self.U_o, self.b_o,
-                                  self.W_g, self.U_g, self.b_g]
+            self.trainable_weights = [self.W_i, self.U_i, self.b_i,
+                                      self.W_c, self.U_c, self.b_c,
+                                      self.W_f, self.U_f, self.b_f,
+                                      self.W_o, self.U_o, self.b_o,
+                                      self.W_g, self.U_g, self.b_g]
+        else:
+            self.trainable_weights = [self.W_i, self.U_i, self.b_i,
+                                      self.W_c, self.U_c, self.b_c,
+                                      self.W_f, self.U_f, self.b_f,
+                                      self.W_o, self.U_o, self.b_o]
 
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
@@ -132,19 +147,24 @@ class LSTM_sent(Recurrent):
                 dropout = 0
             input_shape = self.input_spec[0].shape
             input_dim = input_shape[2]
+            input_dim = self.output_dim
             timesteps = input_shape[1]
 
-            x_i = time_distributed_dense(x, self.W_i, self.b_i, dropout,
+            x_i = time_distributed_dense(x[:,:,0:input_dim], self.W_i, self.b_i, dropout,
                                          input_dim, self.output_dim, timesteps)
-            x_f = time_distributed_dense(x, self.W_f, self.b_f, dropout,
+            x_f = time_distributed_dense(x[:,:,input_dim:2*input_dim], self.W_f, self.b_f, dropout,
                                          input_dim, self.output_dim, timesteps)
-            x_c = time_distributed_dense(x, self.W_c, self.b_c, dropout,
+            x_c = time_distributed_dense(x[:,:,2*input_dim:3*input_dim], self.W_c, self.b_c, dropout,
                                          input_dim, self.output_dim, timesteps)
-            x_o = time_distributed_dense(x, self.W_o, self.b_o, dropout,
+            x_o = time_distributed_dense(x[:,:,3*input_dim:4*input_dim], self.W_o, self.b_o, dropout,
                                          input_dim, self.output_dim, timesteps)
-            x_g = time_distributed_dense(x, self.W_g, self.b_g, dropout,
-                                         input_dim, self.output_dim, timesteps)
-            return K.concatenate([x_i, x_f, x_c, x_o,x_g], axis=2)
+            if self.sentinel:
+                x_g = time_distributed_dense(x[:,:,4*input_dim:], self.W_g, self.b_g, dropout,
+                                             input_dim, self.output_dim, timesteps)
+                return K.concatenate([x_i, x_f, x_c, x_o,x_g], axis=2)
+            else:
+                return K.concatenate([x_i, x_f, x_c, x_o], axis=2)
+
         else:
             return x
 
@@ -161,43 +181,52 @@ class LSTM_sent(Recurrent):
             x_f = x[:, self.output_dim: 2 * self.output_dim]
             x_c = x[:, 2 * self.output_dim: 3 * self.output_dim]
             x_o = x[:, 3 * self.output_dim: 4 * self.output_dim]
-            x_g = x[:, 4 * self.output_dim:]
+            if self.sentinel:
+                x_g = x[:, 4 * self.output_dim:]
         else:
-            x_i = K.dot(x * B_W[0], self.W_i) + self.b_i
-            x_f = K.dot(x * B_W[1], self.W_f) + self.b_f
-            x_c = K.dot(x * B_W[2], self.W_c) + self.b_c
-            x_o = K.dot(x * B_W[3], self.W_o) + self.b_o
-            x_g = K.dot(x * B_W[4], self.W_g) + self.b_g
+            input_dim = self.output_dim
+            x_i = K.dot(x[:,:,0:input_dim] * B_W[0], self.W_i) + self.b_i
+            x_f = K.dot(x[:,:,input_dim*2*input_dim] * B_W[1], self.W_f) + self.b_f
+            x_c = K.dot(x[:,:,2*input_dim:3*input_dim] * B_W[2], self.W_c) + self.b_c
+            x_o = K.dot(x[:,:,3*input_dim:4*input_dim] * B_W[3], self.W_o) + self.b_o
+            if self.sentinel:
+                x_g = K.dot(x[:,:,4*input_dim:] * B_W[4], self.W_g) + self.b_g
 
         i = self.inner_activation(x_i + K.dot(h_tm1 * B_U[0], self.U_i))
         f = self.inner_activation(x_f + K.dot(h_tm1 * B_U[1], self.U_f))
         c = f * c_tm1 + i * self.activation(x_c + K.dot(h_tm1 * B_U[2], self.U_c))
         o = self.inner_activation(x_o + K.dot(h_tm1 * B_U[3], self.U_o))
-        g = self.inner_activation(x_g + K.dot(h_tm1 * B_U[4], self.U_g))
-
         h = o * self.activation(c)
-        s = g * self.activation(c)
-        return [h,s], [h, c]
+        if self.sentinel:
+            g = self.inner_activation(x_g + K.dot(h_tm1 * B_U[4], self.U_g))
+            s = g * self.activation(c)
+            return [h,s], [h, c]
+        else:
+            return h, [h, c]
 
     def get_constants(self, x):
         constants = []
+        if self.sentinel:
+            Ngate = 5
+        else:
+            Ngate = 4
         if 0 < self.dropout_U < 1:
             ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
             ones = K.concatenate([ones] * self.output_dim, 1)
-            B_U = [K.dropout(ones, self.dropout_U) for _ in range(5)]
+            B_U = [K.dropout(ones, self.dropout_U) for _ in range(Ngate)]
             constants.append(B_U)
         else:
-            constants.append([K.cast_to_floatx(1.) for _ in range(5)])
+            constants.append([K.cast_to_floatx(1.) for _ in range(Ngate)])
 
         if self.consume_less == 'cpu' and 0 < self.dropout_W < 1:
             input_shape = self.input_spec[0].shape
             input_dim = input_shape[-1]
             ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
             ones = K.concatenate([ones] * input_dim, 1)
-            B_W = [K.dropout(ones, self.dropout_W) for _ in range(5)]
+            B_W = [K.dropout(ones, self.dropout_W) for _ in range(Ngate)]
             constants.append(B_W)
         else:
-            constants.append([K.cast_to_floatx(1.) for _ in range(5)])
+            constants.append([K.cast_to_floatx(1.) for _ in range(Ngate)])
         return constants
 
 
@@ -209,13 +238,22 @@ class LSTM_sent(Recurrent):
         else:
             output_shape = (input_shape[0], self.output_dim)
         #the hidden state and the sentinel have the same shape
-        return [output_shape, output_shape]
+        if self.sentinel:
+            return [output_shape, output_shape]
+        else:
+            return output_shape
 
     def compute_mask(self, input, mask):
         if self.return_sequences:
-            return [mask, mask]
+            if self.sentinel:
+                return [mask, mask]
+            else :
+                return mask
         else:
-            return [None, None]
+            if self.sentinel:
+                return [None, None]
+            else:
+                return None
 
     def call(self, x, mask=None):
         # input shape: (nb_samples, time (padded with zeros), input_dim)
@@ -250,20 +288,28 @@ class LSTM_sent(Recurrent):
                                              unroll=self.unroll,
                                              input_length=input_shape[1])
 
-        #we need to reorder the batch position, as the default K.rnn()
-        # assumes that the output is a single tensor.
 
-        outputs = K.permute_dimensions(outputs, [0,2,1,3])
         if self.stateful:
             self.updates = []
             for i in range(len(states)):
                 self.updates.append((self.states[i], states[i]))
 
-        #returns a list where the first element is the hidden state and the second sentinel
-        if self.return_sequences:
-            return [outputs[0], outputs[1]]
+        #we need to reorder the batch position, as the default K.rnn()
+        # assumes that the output is a single tensor.
+        if self.sentinel:
+            outputs = K.permute_dimensions(outputs, [0,2,1,3])
+            # returns a list where the first element
+            # is the hidden state and the second sentinel
+            if self.return_sequences:
+                return [outputs[0], outputs[1]]
+            else:
+                return [last_output[0],last_output[1]]
         else:
-            return [last_output[0],last_output[1]]
+            if self.return_sequences:
+                return outputs
+            else:
+                return last_output
+
 
     def get_config(self):
         config = {"output_dim": self.output_dim,
@@ -276,37 +322,7 @@ class LSTM_sent(Recurrent):
                   "U_regularizer": self.U_regularizer.get_config() if self.U_regularizer else None,
                   "b_regularizer": self.b_regularizer.get_config() if self.b_regularizer else None,
                   "dropout_W": self.dropout_W,
-                  "dropout_U": self.dropout_U}
+                  "dropout_U": self.dropout_U,
+                  "sentinel": self.sentinel}
         base_config = super(LSTM_sent, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
-
-
-def slice_0(x):
-    return x[0]
-def slice_1(x):
-    return x[1]
-def slice_output_shape(input_shape):
-    return input_shape[0]
-
-if __name__ == '__main__':
-    bs = 15
-    seqlen = 10
-    in_dim = 100
-    lstm_dim = 256
-    d_dim = 40
-
-    I = Input(batch_shape=(bs,seqlen,in_dim))
-    lstm=LSTM_sent(256,return_sequences=True,stateful=True,
-                 dropout_W=0.5,dropout_U=0.5,
-                 W_regularizer = l2(1e-6),
-                 U_regularizer=l2(1e-6), name='hs')
-    hs = lstm(I) # hs contains the hidden state and the sentinel
-    dh = Lambda(slice_0,output_shape=slice_output_shape)(hs)
-    ds = Lambda(slice_1,output_shape=slice_output_shape)(hs)
-    dh = TimeDistributed(Dense(d_dim,activation='softmax'))(dh)
-    ds = TimeDistributed(Dense(d_dim,activation='softmax'))(ds)
-
-    m = Model(input = I, output = [dh,ds])
-    m.summary()
-
-    m.compile(optimizer='adam',loss=['categorical_crossentropy','categorical_crossentropy'])

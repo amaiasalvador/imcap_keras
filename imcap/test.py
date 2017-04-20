@@ -5,10 +5,26 @@ from utils.dataloader import DataLoader
 from utils.config import get_opt
 from utils.lang_proc import idx2word, sample, beamsearch
 from model import get_model
+from keras.models import Model
 import pickle
 import json
 import time
+from keras import backend as K
 
+def split_net(model):
+
+    # convnet to extract features from image - only once
+    cnn = Model(input=model.get_layer('image').input,
+                output=model.get_layer('conv_feats').output)
+
+    conv_feats = Input(batch_shape=(args_dict.bs,7,7,2048))
+
+    # rest of the network to be run sequentially
+    lang_model = Model(input = [model.get_layer('conv_feats').input,
+                                model.get_layer('prev_words').input],
+                       output = model.output)
+
+    return cnn, lang_model
 parser = get_parser()
 args_dict = parser.parse_args()
 args_dict.mode = 'test'
@@ -24,6 +40,7 @@ vocab = pickle.load(open(vocab_file,'rb'))
 inv_vocab = {v:k for k,v in vocab.items()}
 
 model.compile(optimizer=opt,loss='categorical_crossentropy')
+#cnn, lang_model = split_net(model)
 
 dataloader = DataLoader(args_dict)
 N_train, N_val, N_test = dataloader.get_dataset_size()
@@ -33,7 +50,7 @@ captions = []
 num_samples = 0
 print_every = 100
 t = time.time()
-for [ims,prevs],caps,imids in gen:
+for [ims,prevs],caps,_,imids in gen:
 
     if args_dict.bsize > 1:
 
@@ -41,9 +58,10 @@ for [ims,prevs],caps,imids in gen:
         word_idxs = np.zeros((args_dict.bsize,args_dict.seqlen))
         word_idxs[:,:] = 2
         ### beam search caps ###
-        seqs,scores = beamsearch(model=model,image=ims,
+        conv_feats = cnn.predict_on_batch(ims)
+        seqs,scores = beamsearch(model=model,image=conv_feats,
                                  vocab_size = args_dict.vocab_size,
-                                 start=1,eos=2,maxsample=args_dict.seqlen,
+                                 start=0,eos=0,maxsample=args_dict.seqlen,
                                  k=args_dict.bsize)
 
         seqs = np.array(seqs)[np.argsort(scores)[::-1][:args_dict.bsize]]
@@ -52,9 +70,10 @@ for [ims,prevs],caps,imids in gen:
 
     else:
         # greedy caps
-        prevs = np.ones((N,1))
+        prevs = np.zeros((N,1))
         word_idxs = np.zeros((N,args_dict.seqlen))
 
+        #conv_feats = cnn.predict_on_batch(ims)
         for i in range(args_dict.seqlen):
             # get predictions
             preds = model.predict_on_batch([ims,prevs]) #(N,1,vocab_size)
@@ -67,7 +86,9 @@ for [ims,prevs],caps,imids in gen:
             prevs = np.reshape(prevs,(N,1))
 
     pred_caps = idx2word(word_idxs,inv_vocab)
+    true_caps = idx2word(np.argmax(caps,axis=-1),inv_vocab)
     pred_cap = ' '.join(pred_caps[0][:-1])# exclude eos
+    true_cap = ' '.join(true_caps[0][:-1])# exclude eos
 
     captions.append({"image_id":imids[0]['id'],
                     "caption": pred_cap})

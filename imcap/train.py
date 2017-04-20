@@ -16,28 +16,29 @@ import json
 
 def gencaps(args_dict,model,gen,vocab,N_val):
     '''
-    Extract and save validation captions for early stopping based on metrics
+    Generate and save validation captions for early stopping based on metrics
     '''
     captions = []
     samples = 0
     samples += args_dict.bs
-    for [ims,prevs],_,imids in gen:
+    for [ims,prevs],_,_,imids in gen:
 
+        # we can either use generated words as feedback, or gt ones
         if args_dict.es_prev_words == 'gt':
             preds = model.predict_on_batch([ims,prevs])
             word_idxs = np.argmax(preds,axis=-1)
         else:
-            prevs = np.ones((args_dict.bs,1))
+            prevs = np.zeros((args_dict.bs,1))
             word_idxs = np.zeros((args_dict.bs,args_dict.seqlen))
             for i in range(args_dict.seqlen):
                 # get predictions
                 preds = model.predict_on_batch([ims,prevs])
                 preds = preds.squeeze()
-                #preds = sample(preds,args_dict.temperature)
                 word_idxs[:,i] = np.argmax(preds,axis=-1)
                 prevs = np.argmax(preds,axis=-1)
                 prevs = np.reshape(prevs,(args_dict.bs,1))
         model.reset_states()
+
         caps = idx2word(word_idxs,vocab)
         for i,caption in enumerate(caps):
 
@@ -47,8 +48,10 @@ def gencaps(args_dict,model,gen,vocab,N_val):
         samples+=args_dict.bs
         if samples >= N_val:
             break
+
+    # json file with captions to evaluate
     results_file = os.path.join(args_dict.data_folder, 'results',
-                              args_dict.model_name +'_gencaps_val.json')
+                                args_dict.model_name +'_gencaps_val.json')
     with open(results_file, 'w') as outfile:
         json.dump(captions, outfile)
 
@@ -67,7 +70,7 @@ def trainloop(args_dict,model,suff_name='',model_aux=None):
 
     ## DataLoaders
     dataloader = DataLoader(args_dict)
-    N_train, N_val, N_test = dataloader.get_dataset_size()
+    N_train, N_val, _ = dataloader.get_dataset_size()
     train_gen = dataloader.generator('train',args_dict.bs)
     val_gen = dataloader.generator('val',args_dict.bs)
 
@@ -105,6 +108,7 @@ def trainloop(args_dict,model,suff_name='',model_aux=None):
         vocab_file = os.path.join(args_dict.data_folder,'data',args_dict.vfile)
         vocab = pickle.load(open(vocab_file,'rb'))
         inv_vocab = {v:k for k,v in vocab.items()}
+
         # init waiting param and best metric values
         wait = 0
         best_metric = -np.inf
@@ -136,17 +140,17 @@ def trainloop(args_dict,model,suff_name='',model_aux=None):
             # forward val images to get captions and compute metric
             # this can either be done with true prev words or gen prev words:
             # args_dict.es_prev_words to 'gt' or 'gen'
-
             if args_dict.es_prev_words =='gt':
                 results_file = gencaps(args_dict,model,val_gen_test,inv_vocab,N_val)
             else:
-                aux_model = os.path.join(args_dict.data_folder, 'models',
+                aux_model = os.path.join(args_dict.data_folder, 'tmp',
                                          args_dict.model_name +'_aux.h5')
                 model.save_weights(aux_model,overwrite=True)
                 model_aux.load_weights(aux_model)
-                results_file = gencaps(args_dict,model_aux,val_gen_test,inv_vocab,N_val)
+                results_file = gencaps(args_dict,model_aux,val_gen_test,
+                                       inv_vocab,N_val)
 
-            # the ground truth file
+            # get ground truth file to eval caps
             ann_file = os.path.join(args_dict.coco_path,
                                     'annotations/captions_val2014.json')
             # score captions and return requested metric
@@ -154,6 +158,8 @@ def trainloop(args_dict,model,suff_name='',model_aux=None):
             prog.update(current= N_train,
                         values = [('loss',loss),('val_loss',np.mean(val_losses)),
                                   (args_dict.es_metric,metric)])
+
+            # decide if we save checkpoint and/or stop training
             if metric > best_metric:
                 best_metric = metric
                 wait = 0
@@ -173,6 +179,27 @@ def trainloop(args_dict,model,suff_name='',model_aux=None):
 
     return model
 
+
+def init_aux_model(args_dict,opt):
+    if not args_dict.es_metric =='loss':
+        args_dict.mode = 'test' # to have seqlen = 1 and use preds as prev words
+        model_aux = get_model(args_dict)
+        model_aux.compile(optimizer=opt,loss='categorical_crossentropy',
+                          sample_weight_mode="temporal")
+    else:
+        model_aux = None
+    return model_aux
+
+def init_models(args_dict):
+    model = get_model(args_dict)
+    opt = get_opt(args_dict)
+
+    model.compile(optimizer=opt,loss='categorical_crossentropy',
+                  sample_weight_mode="temporal")
+    model_aux = init_aux_model(args_dict,opt)
+
+    return model, model_aux
+
 if __name__ == "__main__":
 
     parser = get_parser()
@@ -184,79 +211,42 @@ if __name__ == "__main__":
     np.random.seed(args_dict.seed)
 
     if not args_dict.log_term:
-        sys.stdout = open(os.path.join('../logs/', args_dict.model_name + '_train.log'), "w")
+        sys.stdout = open(os.path.join('../logs/',
+                                       args_dict.model_name + '_train.log'), "w")
 
     if not args_dict.model_file: # run all training
 
-        ###  Frozen Convnet ###
-        model = get_model(args_dict)
-        opt = get_opt(args_dict)
-
-        model.compile(optimizer=opt,loss='categorical_crossentropy',
-                      sample_weight_mode="temporal")
-
-        if not args_dict.es_metric =='loss':
-            args_dict.mode = 'test' # to have seqlen = 1 and use preds as prev words
-            model_aux = get_model(args_dict)
-            model_aux.compile(optimizer=opt,loss='categorical_crossentropy',
-                              sample_weight_mode="temporal")
-        else:
-            model_aux = None
-
+        model, model_aux = init_models(args_dict)
+        print (model.summary())
         model = trainloop(args_dict,model,model_aux=model_aux)
 
-        aux_model = os.path.join(args_dict.data_folder, 'models',
+        # save the last state of the model to be loaded for fine tuning
+        aux_model = os.path.join(args_dict.data_folder, 'tmp',
                                  args_dict.model_name +'_aux.h5')
         model.save_weights(aux_model)
 
         del model
         K.clear_session()
 
-        ### Fine Tune ConvNet ###
-        args_dict.lr = args_dict.ftlr
-        args_dict.nepochs = args_dict.ftnepochs
+    ### Fine Tune ConvNet ###
+    # get fine tuning params in place
+    args_dict.lr = args_dict.ftlr
+    args_dict.nepochs = args_dict.ftnepochs
+    model = get_model(args_dict)
+    opt = get_opt(args_dict)
 
-        model = get_model(args_dict)
-        model.load_weights(aux_model)
-        opt = get_opt(args_dict)
-        for layer in model.layers[1].layers:
-            layer.trainable = True
-
-        args_dict.cnn_train = True
-        if not args_dict.es_metric =='loss':
-            args_dict.mode = 'test' # to have seqlen = 1 and use preds as prev words
-            model_aux = get_model(args_dict)
-            model_aux.compile(optimizer=opt,loss='categorical_crossentropy',
-                              sample_weight_mode="temporal")
-        else:
-            model_aux = None
-        model.compile(optimizer=opt,loss='categorical_crossentropy',
-                      sample_weight_mode="temporal")
-
-        model = trainloop(args_dict,model,suff_name='_cnn_train',model_aux=model_aux)
-
-    else: # assumes loading a snapshot with frozen convnet and starts fine tuning it
+    if args_dict.model_file:
         print "Loading snapshot: ", args_dict.model_file
-        args_dict.lr = args_dict.ftlr
-        args_dict.nepochs = args_dict.ftnepochs
-
-        model = get_model(args_dict)
-        opt = get_opt(args_dict)
         model.load_weights(args_dict.model_file)
+    else:
+        model.load_weights(aux_model)
 
-        for layer in model.layers[1].layers:
-            layer.trainable = True
+    for layer in model.layers[1].layers:
+        layer.trainable = True
 
-        model.compile(optimizer=opt,loss='categorical_crossentropy',
-                      sample_weight_mode="temporal")
+    args_dict.cnn_train = True
+    model_aux = init_aux_model(args_dict,opt)
+    model.compile(optimizer=opt,loss='categorical_crossentropy',
+                  sample_weight_mode="temporal")
 
-        args_dict.cnn_train = True
-        if not args_dict.es_metric =='loss':
-            args_dict.mode = 'test' # to have seqlen = 1 and use preds as prev words
-            model_aux = get_model(args_dict)
-            model_aux.compile(optimizer=opt,loss='categorical_crossentropy',
-                              sample_weight_mode="temporal")
-        else:
-            model_aux = None
-
-        model = trainloop(args_dict,model,suff_name='_cnn_train',model_aux=model_aux)
+    model = trainloop(args_dict,model,suff_name='_cnn_train',model_aux=model_aux)

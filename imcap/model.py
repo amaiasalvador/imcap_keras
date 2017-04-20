@@ -1,24 +1,18 @@
 from keras.models import Model
-from keras.layers import Input, BatchNormalization, Lambda
-from keras.layers.core import Dense, Activation, Permute, Merge
+from keras.layers import Input, BatchNormalization
+from keras.layers.core import Dense, Activation, Permute, Merge, Lambda
 from keras.layers.core import RepeatVector, Dropout, Reshape
 from keras.layers.pooling import GlobalAveragePooling2D,GlobalAveragePooling1D
 from keras.layers.recurrent import LSTM
+from layers.lstm_sent import LSTM_sent
 from keras.layers.embeddings import Embedding
 from keras.layers.wrappers import TimeDistributed
 from keras import backend as K
-from layers.lstm_sent import LSTM_sent
 
 from args import get_parser
 
-def slice_0(x):
-    return x[0]
-def slice_1(x):
-    return x[1]
-def slice_output_shape(input_shape):
-    return input_shape[0]
 
-def get_base_model(args_dict):
+def image_model(args_dict):
     '''
     Loads specified pretrained convnet
     '''
@@ -62,9 +56,9 @@ def get_model(args_dict):
         seqlen = 1
 
     # get pretrained convnet
-    base_model = get_base_model(args_dict)
+    base_model = image_model(args_dict)
 
-    num_classes = args_dict.vocab_size + 4
+    num_classes = args_dict.vocab_size
     wh = base_model.output_shape[1] # size of conv5
     dim = base_model.output_shape[3] # number of channels
 
@@ -73,55 +67,68 @@ def get_model(args_dict):
             layer.trainable = False
 
     im = Input(batch_shape=(args_dict.bs,args_dict.imsize,args_dict.imsize,3),name='image')
+    #convfeats = Input(batch_shape=(args_dict.bs,args_dict.w,args_dict.h,args_dict.ch))
     prev_words = Input(batch_shape=(args_dict.bs,seqlen),name='prev_words')
 
     # convnet feats (NxMxdim)
     imfeats = base_model(im)
+    #out = lang_model(imfeats)
 
     # imfeats need to be "flattened" eg 15x15x512 --> 225x512
-    V = Reshape((wh*wh,dim))(imfeats) # 225x512
-    V = BatchNormalization()(V)
+    V = Reshape((wh*wh,dim),name='conv_feats')(imfeats) # 225x512
+    if args_dict.bn:
+        V = BatchNormalization()(V)
 
     # input is the average of conv feats
     Vg = GlobalAveragePooling1D(name='Vg')(V)
     # embed average imfeats
     Vg = Dense(args_dict.emb_dim,activation='relu',name='Vg_')(Vg)
-    Vg = Dropout(args_dict.dr_ratio)(Vg)
+    if args_dict.dr:
+        Vg = Dropout(args_dict.dr_ratio)(Vg)
 
     # we keep spatial image feats to compute context vector later
     # project to z_space
     Vi = TimeDistributed(Dense(args_dict.z_dim,activation='relu'),name='Vi')(V)
-    Vi = Dropout(args_dict.dr_ratio)(Vi)
-    Vi = BatchNormalization()(Vi)
+    if args_dict.dr:
+        Vi = Dropout(args_dict.dr_ratio)(Vi)
+    if args_dict.bn:
+        Vi = BatchNormalization()(Vi)
     # embed
     Vi_emb = TimeDistributed(Dense(args_dict.emb_dim),name='Vi_emb')(Vi)
-    Vi_emb = BatchNormalization()(Vi_emb)
     # repeat average feat as many times as seqlen to infer output size
     x = RepeatVector(seqlen)(Vg) # seqlen,512
 
     # embedding for previous words
-    wemb = Embedding(num_classes,args_dict.z_dim,input_length = seqlen,name='wemb')
+    wemb = Embedding(num_classes,args_dict.emb_dim,input_length = seqlen)
     emb = wemb(prev_words)
-    emb = BatchNormalization()(emb)
-
     emb = Activation('relu')(emb)
-    emb = Dropout(args_dict.dr_ratio)(emb)
+    if args_dict.dr:
+        emb = Dropout(args_dict.dr_ratio)(emb)
+    if args_dict.bn:
+        emb = BatchNormalization(name='wemb')(emb)
+
+    if args_dict.sgate:
+        mul = 5
+    else:
+        mul = 4
+    x_lstm_in = TimeDistributed(Dense(mul*args_dict.lstm_dim),name='x_lstm_in')(x)
+    emb_lstm_in = TimeDistributed(Dense(mul*args_dict.lstm_dim),name='emb_lstm_in')(emb)
 
     # input is the concatenation of avg imfeats and previous words
-    x = Merge(mode='sum',name='lstm_in')([x,emb])
+    x = Merge(mode='sum',name='lstm_in')([x_lstm_in,emb_lstm_in])
 
     if args_dict.sgate:
         # lstm with two outputs
-        lstm_ = LSTM_sent(args_dict.lstm_dim,return_sequences=True,stateful=True,
-                     dropout_W=args_dict.dr_ratio,dropout_U=args_dict.dr_ratio,
-                     name='hs')
+        lstm_ = LSTM_sent(output_dim = args_dict.lstm_dim,
+                          return_sequences=True,stateful=True,
+                          sentinel=True,name='hs')
         h, s = lstm_(x)
 
     else:
         # regular lstm
-        lstm_ = LSTM(args_dict.lstm_dim,return_sequences=True,stateful=True,
-                     dropout_W=args_dict.dr_ratio,dropout_U=args_dict.dr_ratio,
-                     name='h')
+        lstm_ = LSTM_sent(args_dict.lstm_dim,
+                          return_sequences=True,stateful=True,
+                          sentinel = False,name='h')
         h = lstm_(x)
 
     num_vfeats = wh*wh
@@ -129,6 +136,19 @@ def get_model(args_dict):
         num_vfeats = num_vfeats + 1
 
     if args_dict.attlstm:
+
+        # embed ht vectors.
+        # linear used as input to final classifier, embedded ones are used to compute attention
+        h_out_linear = TimeDistributed(Dense(args_dict.z_dim,activation='tanh'),name='zh_linear')(h)
+        if args_dict.dr:
+            h_out_linear = Dropout(args_dict.dr_ratio)(h_out_linear)
+        if args_dict.bn:
+            h_out_linear = BatchNormalization()(h_out_linear)
+        h_out_embed = TimeDistributed(Dense(args_dict.emb_dim),name='zh_embed')(h_out_linear)
+        if args_dict.bn:
+            h_out_embed = BatchNormalization()(h_out_embed)
+        # repeat all h vectors as many times as local feats in v
+        z_h_embed = TimeDistributed(RepeatVector(num_vfeats))(h_out_embed)
 
         # repeat all image vectors as many times as timesteps (seqlen)
         # linear feats are used to apply attention, embedded feats are used to compute attention
@@ -138,33 +158,23 @@ def get_model(args_dict):
         z_v_linear = Permute((2,1,3))(z_v_linear)
         z_v_embed = Permute((2,1,3))(z_v_embed)
 
-        # embed ht vectors.
-        # linear used as input to final classifier, embedded ones are used to compute attention
-
-        h_out_linear = TimeDistributed(Dense(args_dict.z_dim,activation='tanh'),name='zh_linear')(h)
-        h_out_linear = Dropout(args_dict.dr_ratio)(h_out_linear)
-        h_out_linear = BatchNormalization()(h_out_linear)
-        h_out_embed = TimeDistributed(Dense(args_dict.emb_dim),name='zh_embed')(h_out_linear)
-        h_out_embed = BatchNormalization()(h_out_embed)
-        # repeat all h vectors as many times as local feats in v
-        z_h_embed = TimeDistributed(RepeatVector(num_vfeats))(h_out_embed)
-
         if args_dict.sgate:
 
             # embed sentinel vec
-
             # linear used as additional feat to apply attention, embedded used as add. feat to compute attention
             fake_feat = TimeDistributed(Dense(args_dict.z_dim,activation='relu'),name='zs_linear')(s)
-            fake_feat = Dropout(args_dict.dr_ratio)(fake_feat)
-            fake_feat = BatchNormalization()(fake_feat)
-            
+            if args_dict.dr:
+                fake_feat = Dropout(args_dict.dr_ratio)(fake_feat)
+            if args_dict.bn:
+                fake_feat = BatchNormalization()(fake_feat)
+
             fake_feat_embed = TimeDistributed(Dense(args_dict.emb_dim),name='zs_embed')(fake_feat)
             # reshape for merging with visual feats
             z_s_linear = Reshape((seqlen,1,args_dict.z_dim))(fake_feat)
             z_s_embed = Reshape((seqlen,1,args_dict.emb_dim))(fake_feat_embed)
-            z_s_linear = BatchNormalization()(z_s_linear)
-            z_s_embed = BatchNormalization()(z_s_embed)
-
+            if args_dict.bn:
+                z_s_linear = BatchNormalization()(z_s_linear)
+                z_s_embed = BatchNormalization()(z_s_embed)
             # concat fake feature to the rest of image features
             z_v_linear = Merge(mode='concat',concat_axis=-2)([z_v_linear,z_s_linear])
             z_v_embed = Merge(mode='concat',concat_axis=-2)([z_v_embed,z_s_embed])
@@ -172,7 +182,8 @@ def get_model(args_dict):
         # sum outputs from z_v and z_h
         z = Merge(mode='sum',name='merge_v_h')([z_h_embed,z_v_embed])
         z = Activation('tanh',name='merge_v_h_tanh')(z)
-        z = Dropout(args_dict.dr_ratio)(z)
+        if args_dict.dr:
+            z = Dropout(args_dict.dr_ratio)(z)
         # compute attention values
         att = TimeDistributed(TimeDistributed(Dense(1)),name='att')(z)
 
@@ -184,11 +195,15 @@ def get_model(args_dict):
 
         # get context vector as weighted sum of image features using att
         w_Vi = Merge(mode='mul',name='vi_weighted')([att,z_v_linear])
-        c_vec = TimeDistributed(GlobalAveragePooling1D(),name='c_vec')(w_Vi)
-        c_vec = BatchNormalization()(c_vec)
+        sumpool = Lambda(lambda x: K.sum(x, axis=-2),
+                       output_shape=(args_dict.z_dim,))
+        c_vec = TimeDistributed(sumpool,name='c_vec')(w_Vi)
+        if args_dict.bn:
+            c_vec = BatchNormalization()(c_vec)
         h = Merge(mode='sum',name='mlp_in')([h_out_linear,c_vec])
         h = TimeDistributed(Dense(args_dict.emb_dim,activation='tanh'))(h)
-        h = Dropout(args_dict.dr_ratio,name='mlp_in_tanh_dp')(h)
+        if args_dict.dr:
+            h = Dropout(args_dict.dr_ratio,name='mlp_in_tanh_dp')(h)
 
     predictions = TimeDistributed(Dense(num_classes,activation='softmax'),name='out')(h)
 
@@ -202,4 +217,4 @@ if __name__ == "__main__":
     args_dict = parser.parse_args()
 
     model = get_model(args_dict)
-    model.summary()
+    print (model.summary())
