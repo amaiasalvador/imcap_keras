@@ -11,11 +11,10 @@ def get_parser():
                         default = 'dataset.h5',
                         help='name of hdf5 file (with extension)')
     parser.add_argument('-vfile', dest='vfile',
-                        default = 'voc.pkl',
+                        default = 'vocab.pkl',
                         help='name of vocab file (with extension)')
     parser.add_argument('-model_file', dest='model_file',
                         default = None,help='path to model file to load (either for testing or snapshooting).')
-
     # data-related
     parser.add_argument('-coco_path', dest='coco_path',
                         default = '/seq/segmentation/COCO/tools',
@@ -25,7 +24,7 @@ def get_parser():
     parser.add_argument('-data_folder', dest='data_folder',
                         default = '/work/asalvador/sat_keras/',
                         help='save folder')
-    parser.add_argument('-min_occ',dest='min_occ', default = 5,
+    parser.add_argument('-min_occ',dest='min_occ', default = 3,
                         help='Min number of occurrences to use a word',type=int)
 
     # model parts, inputs
@@ -35,7 +34,7 @@ def get_parser():
     parser.add_argument('-imsize', dest='imsize',
                         default = 224, help='Image size',type=int)
     parser.add_argument('-vocab_size', dest='vocab_size',
-                        default = 8855, help='Vocabulary size' ,type=int)
+                        default = 10000, help='Vocabulary size' ,type=int)
     parser.add_argument('-n_caps', dest='n_caps',
                         default = 5, help='Number of captions for training',
                         type=int)
@@ -50,8 +49,13 @@ def get_parser():
     parser.add_argument('-z_dim',dest='z_dim', default = 512,
                         help='Dimensionality of z space (att operations)',type=int)
     parser.add_argument('-dr_ratio',dest='dr_ratio', default = 0.5,
-                        help='Dropout ratio',type=int)
-
+                        help='Dropout ratio',type=float)
+    parser.add_argument('-finetune_start_layer',dest='finetune_start_layer',
+                        default = 6,help='CNN layer to start fine tuning',type=int)
+    parser.add_argument('-nfilters',dest='nfilters', default = 2048,
+                        help='Number of channels for conv layer',type=int)
+    parser.add_argument('-convsize',dest='convsize', default = 7,
+                        help='Spatial dimension of conv layer',type=int)
     # Training params
     parser.add_argument('-seed', dest='seed',
                         default = 123, help='Random seed',type=int)
@@ -66,6 +70,8 @@ def get_parser():
                                 help='Adams beta',type=float)
     parser.add_argument('-lr',dest='lr', default = 5e-4,
                                 help='Learning rate',type=float)
+    parser.add_argument('-lrmult_conv',dest='lrmult_conv', default = 0.001,
+                                help='Learning rate multiplier for convnet',type=float)
     parser.add_argument('-ftlr',dest='ftlr', default = 1e-5,
                                 help='Learning rate when fine tuning',type=float)
     parser.add_argument('-decay',dest='decay', default = 0.0,
@@ -76,7 +82,7 @@ def get_parser():
                         help='Number of train epochs (frozen cnn)',type=int)
     parser.add_argument('-ftnepochs',dest='ftnepochs', default = 30,
                         help='Number of train epochs (ft cnn)',type=int)
-    parser.add_argument('-pat',dest='pat', default = 4,
+    parser.add_argument('-pat',dest='pat', default = 5,
                             help='Patience',type=int)
     parser.add_argument('-workers',dest='workers', default = 2,
                         help='Number of data loading threads',type=int)
@@ -100,6 +106,10 @@ def get_parser():
 
     parser.add_argument('--lstm', dest='attlstm', action='store_false')
     parser.set_defaults(attlstm=True)
+
+    parser.add_argument('--lrmults', dest='lrmults', action='store_true')
+    parser.set_defaults(lrmults=False)
+
 
     parser.add_argument('--sgate', dest='sgate', action='store_true')
     parser.set_defaults(sgate=False)
