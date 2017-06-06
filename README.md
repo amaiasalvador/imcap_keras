@@ -25,6 +25,16 @@ git clone --recursive https://github.com/amaiasalvador/sat_keras.git
 - Install [python 2.7](https://www.python.org/).
 - Install [tensorflow 0.12](https://github.com/tensorflow/tensorflow/blob/r0.12/tensorflow/g3doc/get_started/os_setup.md).
 - ```pip install -r requirements.txt```
+- (Optional )Install [this](https://github.com/amaiasalvador/keras/tree/lr_mults) Keras PR with support for layer-wise learning rate multipliers:
+```
+git clone https://github.com/amaiasalvador/keras.git
+cd keras
+git checkout lr_mult
+python setup.py install
+```
+
+This option is disabled by default, so you can use "regular" keras 1.2.2 if you don't want to set a different learning rate to the base model.
+
 - Set tensorflow as the keras backend in ```~/.keras/keras.json```:
 
 ```json
