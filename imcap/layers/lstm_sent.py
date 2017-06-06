@@ -6,38 +6,6 @@ class LSTM_sent(Recurrent):
     Lu et al. Knowing When to Look:
               Adaptive Attention via A Visual Sentinel for Image Captioning
     https://arxiv.org/abs/1612.01887
-    Outputs the hidden state and the output of the sentinel gate.
-
-    Input is a sequence where each timestep is the sum of the embedding
-    of the previous word, and the average image feature. These should have been
-    previously embedded separately into a space of dimensionality
-    N*lstm_dim. N is the number of LSTM gates (5 when using sentinel, 4 for
-    normal LSTM). lstm_dim is the output dimension of the LSTM. This is a
-    workaround in order to have an LSTM with two separate inputs.
-    This layer will take the input and slice it in N chunks to assign as inputs
-    for each one of the LSTM gates.
-
-    Usage example:
-
-    lstm_dim = 512
-    prev_words = ... # word idxs
-    emb = Embedding(...)(prev_words)
-    emb = TimeDistributed(Dense(5*lstm_dim))(emb)
-
-    im = ... # image input
-    im_feats = convnet_x(image) # get features using some convnet
-    im_feats = RepeatVector(...)(imfeats) # repeat feats as many times as seqlen
-
-
-    im_feats = TimeDistributed(Dense(5*lstm_dim))(im_feats)
-
-    lstm_in = Merge(mode='sum')([im_feats,emb])
-
-    h,s = LSTM_sent(output_dim = lstm_dim,sentinel = True)(lstm_in)
-
-    # in this case the last positions of the input are ignored
-    h = LSTM_sent(output_dim = lstm_dim,sentinel = False)(lstm_in)
-
     """
     def __init__(self, output_dim,
                  init='glorot_uniform', inner_init='orthogonal',
@@ -62,8 +30,7 @@ class LSTM_sent(Recurrent):
 
     def build(self, input_shape):
         self.input_spec = [InputSpec(shape=input_shape)]
-        #input_dim = input_shape[2]
-        input_dim = self.output_dim
+        input_dim = input_shape[2]
         self.input_dim = input_dim
 
         if self.stateful:
@@ -133,13 +100,11 @@ class LSTM_sent(Recurrent):
         if hasattr(self, 'states'):
             K.set_value(self.states[0],
                         np.zeros((input_shape[0], self.output_dim)))
-            if self.sentinel:
-                K.set_value(self.states[1],
-                            np.zeros((input_shape[0], self.output_dim)))
+            K.set_value(self.states[1],
+                        np.zeros((input_shape[0], self.output_dim)))
         else:
-            self.states = [K.zeros((input_shape[0], self.output_dim))]
-            if self.sentinel:
-                self.states.append(K.zeros((input_shape[0], self.output_dim)))
+            self.states = [K.zeros((input_shape[0], self.output_dim)),
+                           K.zeros((input_shape[0], self.output_dim))]
 
     def preprocess_input(self, x, train=False):
         if self.consume_less == 'cpu':
@@ -148,20 +113,19 @@ class LSTM_sent(Recurrent):
             else:
                 dropout = 0
             input_shape = self.input_spec[0].shape
-            #input_dim = input_shape[2]
-            input_dim = self.output_dim
+            input_dim = input_shape[2]
             timesteps = input_shape[1]
 
-            x_i = time_distributed_dense(x[:,:,0:input_dim], self.W_i, self.b_i, dropout,
+            x_i = time_distributed_dense(x, self.W_i, self.b_i, dropout,
                                          input_dim, self.output_dim, timesteps)
-            x_f = time_distributed_dense(x[:,:,input_dim:2*input_dim], self.W_f, self.b_f, dropout,
+            x_f = time_distributed_dense(x, self.W_f, self.b_f, dropout,
                                          input_dim, self.output_dim, timesteps)
-            x_c = time_distributed_dense(x[:,:,2*input_dim:3*input_dim], self.W_c, self.b_c, dropout,
+            x_c = time_distributed_dense(x, self.W_c, self.b_c, dropout,
                                          input_dim, self.output_dim, timesteps)
-            x_o = time_distributed_dense(x[:,:,3*input_dim:4*input_dim], self.W_o, self.b_o, dropout,
+            x_o = time_distributed_dense(x, self.W_o, self.b_o, dropout,
                                          input_dim, self.output_dim, timesteps)
             if self.sentinel:
-                x_g = time_distributed_dense(x[:,:,4*input_dim:], self.W_g, self.b_g, dropout,
+                x_g = time_distributed_dense(x, self.W_g, self.b_g, dropout,
                                              input_dim, self.output_dim, timesteps)
                 return K.concatenate([x_i, x_f, x_c, x_o,x_g], axis=2)
             else:
@@ -186,13 +150,12 @@ class LSTM_sent(Recurrent):
             if self.sentinel:
                 x_g = x[:, 4 * self.output_dim:]
         else:
-            input_dim = self.output_dim
-            x_i = K.dot(x[:,:,0:input_dim] * B_W[0], self.W_i) + self.b_i
-            x_f = K.dot(x[:,:,input_dim*2*input_dim] * B_W[1], self.W_f) + self.b_f
-            x_c = K.dot(x[:,:,2*input_dim:3*input_dim] * B_W[2], self.W_c) + self.b_c
-            x_o = K.dot(x[:,:,3*input_dim:4*input_dim] * B_W[3], self.W_o) + self.b_o
+            x_i = K.dot(x, self.W_i) + self.b_i
+            x_f = K.dot(x * B_W[1], self.W_f) + self.b_f
+            x_c = K.dot(x * B_W[2], self.W_c) + self.b_c
+            x_o = K.dot(x * B_W[3], self.W_o) + self.b_o
             if self.sentinel:
-                x_g = K.dot(x[:,:,4*input_dim:] * B_W[4], self.W_g) + self.b_g
+                x_g = K.dot(x * B_W[4], self.W_g) + self.b_g
 
         i = self.inner_activation(x_i + K.dot(h_tm1 * B_U[0], self.U_i))
         f = self.inner_activation(x_f + K.dot(h_tm1 * B_U[1], self.U_f))
