@@ -1,6 +1,6 @@
 import numpy as np
 import os
-from model import get_model
+from model import get_model, image_model, language_model
 from keras.callbacks import EarlyStopping, ModelCheckpoint
 from keras.utils.generic_utils import Progbar
 from keras import backend as K
@@ -13,6 +13,7 @@ from coco_caption.pycocoevalcap.eval import COCOEvalCap
 import sys
 import pickle
 import json
+from keras.layers import Input
 
 def gencaps(args_dict,model,gen,vocab,N_val):
     '''
@@ -66,12 +67,13 @@ def get_metric(args_dict,results_file,ann_file):
 
     return cocoEval.eval[args_dict.es_metric]
 
-def trainloop(args_dict,model,suff_name='',model_aux=None):
+def trainloop(args_dict,model,suff_name='',model_val=None):
 
     ## DataLoaders
     dataloader = DataLoader(args_dict)
-    N_train, N_val, _ = dataloader.get_dataset_size()
+    N_train, N_val, _, N_restval = dataloader.get_dataset_size()
     train_gen = dataloader.generator('train',args_dict.bs)
+    restval_gen = dataloader.generator('restval',args_dict.bs)
     val_gen = dataloader.generator('val',args_dict.bs)
 
     if args_dict.es_metric == 'loss':
@@ -115,17 +117,26 @@ def trainloop(args_dict,model,suff_name='',model_aux=None):
 
         for e in range(args_dict.nepochs):
             print "Epoch %d/%d"%(e+1,args_dict.nepochs)
-            prog = Progbar(target = N_train)
+            prog = Progbar(target = N_train + N_restval)
 
             samples = 0
             for x,y,sw in train_gen: # do one epoch
                 loss = model.train_on_batch(x=x,y=y,sample_weight=sw)
                 model.reset_states()
-
                 samples+=args_dict.bs
                 if samples >= N_train:
                     break
                 prog.update(current= samples ,values = [('loss',loss)])
+
+            # non used validation samples as training as well
+            for x,y,sw in restval_gen:
+                loss = model.train_on_batch(x=x,y=y,sample_weight=sw)
+                model.reset_states()
+                samples+=args_dict.bs
+                if samples >= N_train + N_restval:
+                    break
+                prog.update(current= samples ,values = [('loss',loss)])
+
 
             # forward val images to get loss
             samples = 0
@@ -136,18 +147,17 @@ def trainloop(args_dict,model,suff_name='',model_aux=None):
                 samples+=args_dict.bs
                 if samples > N_val:
                     break
-
             # forward val images to get captions and compute metric
             # this can either be done with true prev words or gen prev words:
             # args_dict.es_prev_words to 'gt' or 'gen'
             if args_dict.es_prev_words =='gt':
-                results_file = gencaps(args_dict,model,val_gen_test,inv_vocab,N_val)
+                results_file = gencaps(args_dict,cnn,lang_model,val_gen_test,inv_vocab,N_val)
             else:
                 aux_model = os.path.join(args_dict.data_folder, 'tmp',
                                          args_dict.model_name +'_aux.h5')
                 model.save_weights(aux_model,overwrite=True)
-                model_aux.load_weights(aux_model)
-                results_file = gencaps(args_dict,model_aux,val_gen_test,
+                model_val.load_weights(aux_model)
+                results_file = gencaps(args_dict,model_val,val_gen_test,
                                        inv_vocab,N_val)
 
             # get ground truth file to eval caps
@@ -155,7 +165,7 @@ def trainloop(args_dict,model,suff_name='',model_aux=None):
                                     'annotations/captions_val2014.json')
             # score captions and return requested metric
             metric = get_metric(args_dict,results_file,ann_file)
-            prog.update(current= N_train,
+            prog.update(current= N_train + N_restval,
                         values = [('loss',loss),('val_loss',np.mean(val_losses)),
                                   (args_dict.es_metric,metric)])
 
@@ -177,28 +187,24 @@ def trainloop(args_dict,model,suff_name='',model_aux=None):
 
     args_dict.mode = 'train'
 
-    return model
-
-
-def init_aux_model(args_dict,opt):
-    if not args_dict.es_metric =='loss':
-        args_dict.mode = 'test' # to have seqlen = 1 and use preds as prev words
-        model_aux = get_model(args_dict)
-        model_aux.compile(optimizer=opt,loss='categorical_crossentropy',
-                          sample_weight_mode="temporal")
-    else:
-        model_aux = None
-    return model_aux
+    return model, model_name
 
 def init_models(args_dict):
     model = get_model(args_dict)
     opt = get_opt(args_dict)
-
     model.compile(optimizer=opt,loss='categorical_crossentropy',
                   sample_weight_mode="temporal")
-    model_aux = init_aux_model(args_dict,opt)
 
-    return model, model_aux
+    if not args_dict.es_metric == 'loss':
+        args_dict.mode = 'test'
+        model_val = get_model(args_dict)
+        model_val.compile(optimizer=opt,loss='categorical_crossentropy',
+                      sample_weight_mode="temporal")
+        args_dict.mode = 'train'
+    else:
+        model_val = None
+
+    return model, model_val
 
 if __name__ == "__main__":
 
@@ -216,14 +222,8 @@ if __name__ == "__main__":
 
     if not args_dict.model_file: # run all training
 
-        model, model_aux = init_models(args_dict)
-        print (model.summary())
-        model = trainloop(args_dict,model,model_aux=model_aux)
-
-        # save the last state of the model to be loaded for fine tuning
-        aux_model = os.path.join(args_dict.data_folder, 'tmp',
-                                 args_dict.model_name +'_aux.h5')
-        model.save_weights(aux_model)
+        model, model_val = init_models(args_dict)
+        model, model_name = trainloop(args_dict,model,model_val = model_val)
 
         del model
         K.clear_session()
@@ -239,14 +239,18 @@ if __name__ == "__main__":
         print "Loading snapshot: ", args_dict.model_file
         model.load_weights(args_dict.model_file)
     else:
-        model.load_weights(aux_model)
+        model.load_weights(model_name)
 
-    for layer in model.layers[1].layers:
-        layer.trainable = True
+    for i,layer in enumerate(model.layers[1].layers):
+        if i > args_dict.finetune_start_layer:
+            layer.trainable = True
 
-    args_dict.cnn_train = True
-    model_aux = init_aux_model(args_dict,opt)
     model.compile(optimizer=opt,loss='categorical_crossentropy',
                   sample_weight_mode="temporal")
-
-    model = trainloop(args_dict,model,suff_name='_cnn_train',model_aux=model_aux)
+    args_dict.cnn_train = True
+    args_dict.mode = 'test'
+    model_val = get_model(args_dict)
+    model_val.compile(optimizer=opt,loss='categorical_crossentropy',
+                      sample_weight_mode="temporal")
+    args_dict.mode = 'train'
+    model,model_name = trainloop(args_dict,model,suff_name='_cnn_train',model_val = model_val)

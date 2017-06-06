@@ -36,11 +36,11 @@ if not os.path.isfile(vocab_file):
     anns = load_caps(args_dict)
     words = topK(anns)
     word2class = create_dict(words,args_dict.min_occ)
-    print len(word2class), 'most common words selected. Set num_classes in args.py to equal this number.'
+    print len(word2class), 'most common words selected. Set vocab_size in args.py to equal this number.'
     with open(vocab_file,'wb') as f:
         pickle.dump(word2class,f)
     print ('Done.')
-
+    args_dict.vocab_size = len(word2class)
 dataloader = DataLoader(args_dict)
 dataset_file = os.path.join(args_dict.data_folder,'data',args_dict.h5file)
 

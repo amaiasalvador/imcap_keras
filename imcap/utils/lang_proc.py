@@ -49,6 +49,7 @@ def topK(anns):
 
     for i,ann in enumerate(anns):
         caption =ann['caption'].lower()
+        caption = caption.split('.')[0]
         tok_caption = nltk.word_tokenize(caption)
 
         if len(tok_caption) > maxlen:
@@ -62,15 +63,17 @@ def topK(anns):
     topk_words = fdist.most_common()
     return topk_words
 
-def create_dict(topk_words,min_occ):
+def create_dict(topk_words,min_occ,max_vocab = 10000):
 
     word2class = {'<start>':0,'<eos>':1,'<unk>':2}
     p = 3
     for word in topk_words:
-        if word[1] < min_occ: #words with less than 5 occurrences discarded
+        if word[1] < min_occ: #words with less than min_occ occurrences discarded
             break
         word2class[word[0]] = p
         p+=1
+        if p >= max_vocab:
+            break
     return word2class
 
 def lemmatize_sentence(sentence):

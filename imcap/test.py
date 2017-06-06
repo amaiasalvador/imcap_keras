@@ -4,27 +4,15 @@ from args import get_parser
 from utils.dataloader import DataLoader
 from utils.config import get_opt
 from utils.lang_proc import idx2word, sample, beamsearch
-from model import get_model
+from model import get_model, image_model, language_model
 from keras.models import Model
 import pickle
 import json
 import time
 from keras import backend as K
+from keras.layers import Input
 
-def split_net(model):
 
-    # convnet to extract features from image - only once
-    cnn = Model(input=model.get_layer('image').input,
-                output=model.get_layer('conv_feats').output)
-
-    conv_feats = Input(batch_shape=(args_dict.bs,7,7,2048))
-
-    # rest of the network to be run sequentially
-    lang_model = Model(input = [model.get_layer('conv_feats').input,
-                                model.get_layer('prev_words').input],
-                       output = model.output)
-
-    return cnn, lang_model
 parser = get_parser()
 args_dict = parser.parse_args()
 args_dict.mode = 'test'
@@ -32,18 +20,16 @@ args_dict.bs = 1
 
 model = get_model(args_dict)
 opt = get_opt(args_dict)
-
 weights = args_dict.model_file
 model.load_weights(weights)
+model.compile(optimizer=opt,loss='categorical_crossentropy')
+
 vocab_file = os.path.join(args_dict.data_folder,'data',args_dict.vfile)
 vocab = pickle.load(open(vocab_file,'rb'))
 inv_vocab = {v:k for k,v in vocab.items()}
 
-model.compile(optimizer=opt,loss='categorical_crossentropy')
-#cnn, lang_model = split_net(model)
-
 dataloader = DataLoader(args_dict)
-N_train, N_val, N_test = dataloader.get_dataset_size()
+N_train, N_val, N_test, _ = dataloader.get_dataset_size()
 N = args_dict.bs
 gen = dataloader.generator('test',batch_size=args_dict.bs,train_flag=False)
 captions = []
@@ -59,7 +45,7 @@ for [ims,prevs],caps,_,imids in gen:
         word_idxs[:,:] = 2
         ### beam search caps ###
         conv_feats = cnn.predict_on_batch(ims)
-        seqs,scores = beamsearch(model=model,image=conv_feats,
+        seqs,scores = beamsearch(model=lang_model,image=conv_feats,
                                  vocab_size = args_dict.vocab_size,
                                  start=0,eos=0,maxsample=args_dict.seqlen,
                                  k=args_dict.bsize)
@@ -73,7 +59,6 @@ for [ims,prevs],caps,_,imids in gen:
         prevs = np.zeros((N,1))
         word_idxs = np.zeros((N,args_dict.seqlen))
 
-        #conv_feats = cnn.predict_on_batch(ims)
         for i in range(args_dict.seqlen):
             # get predictions
             preds = model.predict_on_batch([ims,prevs]) #(N,1,vocab_size)
