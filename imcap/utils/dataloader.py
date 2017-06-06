@@ -53,11 +53,14 @@ class DataLoader(object):
 
     def get_split(self,partition):
 
-        with open(os.path.join('../splits/coco_%s.txt'%(partition)),'r') as f:
+        with open('../splits/coco_%s.txt'%(partition),'r') as f:
             lines = f.readlines()
             imnames = []
             for line in lines:
                 imnames.append(line.rstrip())
+
+        # images in val split that are not used for validation will be
+        # used for training
 
         return imnames
     def get_anns(self,partition):
@@ -68,7 +71,7 @@ class DataLoader(object):
         '''
 
         # test split comes from validation partition.
-        if partition == 'test':
+        if partition == 'test' or partition == 'restval':
             part = 'val'
         else:
             part = partition
@@ -84,7 +87,7 @@ class DataLoader(object):
         for i,im in enumerate(ims):
             imname2idx[im['file_name']] = i
 
-        if partition == 'test' or partition == 'val':
+        if partition == 'test' or partition == 'val' or partition == 'restval':
             filenames = self.get_split(partition)
             ims = [ims[imname2idx[x]] for x in filenames]
 
@@ -107,6 +110,7 @@ class DataLoader(object):
         for i in range(self.n_caps):
             # basic sentence formatting, tokenize & lower capital letters
             caption = captions[i]
+            caption = caption.split('.')[0]
             tok_caption = nltk.word_tokenize(caption.lower())
             # seqlen - 1 because of start and end of sequence
             tok_caption = tok_caption[:self.seqlen-2]
@@ -134,15 +138,16 @@ class DataLoader(object):
 
         with h5py.File(os.path.join(self.data_folder,'data',self.h5file),'w') as f_ds:
 
-            for part in ['test','val','train']:
+            for part in ['restval','train','test','val']:
                 # offline test set included in validation set
-                if part == 'test':
+                if part == 'test' or part == 'restval':
                     ims_path = os.path.join(self.coco,'images','val'+self.year)
                 else:
                     ims_path = os.path.join(self.coco,'images',part+self.year)
 
                 ims,imid2caps  = self.get_anns(part)
                 nims = len(ims)
+                print "Processing %d samples..."%(nims)
 
                 # image data
                 idata = f_ds.create_dataset('ims_%s'%(part),(nims,
@@ -175,8 +180,9 @@ class DataLoader(object):
         train_ims, _ = self.get_anns('train')
         val_ims, _ = self.get_anns('val')
         test_ims, _ = self.get_anns('test')
+        rest_val, _ = self.get_anns('restval')
 
-        return len(train_ims), len(val_ims), len(test_ims)
+        return len(train_ims), len(val_ims), len(test_ims), len(rest_val)
 
     @threadsafe_generator
     def generator(self,partition,batch_size,train_flag=True):
