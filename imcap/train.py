@@ -44,7 +44,7 @@ def gencaps(args_dict,model,gen,vocab,N_val):
         for i,caption in enumerate(caps):
 
             pred_cap = ' '.join(caption)# exclude eos
-            captions.append({"image_id":imids[i]['id'],
+            captions.append({"image_id":imids[i],
                             "caption": pred_cap.split('<eos>')[0]})
         samples+=args_dict.bs
         if samples >= N_val:
@@ -152,9 +152,10 @@ def trainloop(args_dict,model,suff_name='',model_val=None,epoch_start = 0):
                 results_file = gencaps(args_dict,model_val,val_gen_test,
                                        inv_vocab,N_val)
 
-            # get ground truth file to eval caps
-            ann_file = os.path.join(args_dict.coco_path,
-                                    'annotations/captions_val2014.json')
+            # get merged ground truth file to eval caps
+
+            ann_file = './utils/captions_merged.json'
+
             # score captions and return requested metric
             metric = get_metric(args_dict,results_file,ann_file)
             prog.update(current= N_train,
