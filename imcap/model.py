@@ -10,6 +10,7 @@ from keras.layers.embeddings import Embedding
 from keras.layers.wrappers import TimeDistributed
 from keras import backend as K
 from utils.config import get_opt
+import json
 from args import get_parser
 
 
@@ -86,9 +87,7 @@ def language_model(args_dict,wh,dim,convfeats,prev_words):
     if args_dict.dr:
         emb = Dropout(args_dict.dr_ratio)(emb)
 
-    # input is the concatenation of avg imfeats and previous words
-    x = Merge(mode='sum',name='lstm_in')([x,emb])
-
+    x = Merge(mode='concat',name='lstm_in')([x,emb])
     if args_dict.dr:
         x = Dropout(args_dict.dr_ratio)(x)
     if args_dict.sgate:
@@ -120,7 +119,7 @@ def language_model(args_dict,wh,dim,convfeats,prev_words):
         h_out_linear = Convolution1D(args_dict.z_dim,1,activation='tanh',name='zh_linear',border_mode='same')(h)
         if args_dict.dr:
             h_out_linear = Dropout(args_dict.dr_ratio)(h_out_linear)
-        h_out_embed = Convolution1D(args_dict.emb_dim,1,activation='tanh',name='zh_embed',border_mode='same')(h_out_linear)
+        h_out_embed = Convolution1D(args_dict.emb_dim,1,name='zh_embed',border_mode='same')(h_out_linear)
         # repeat all h vectors as many times as local feats in v
         z_h_embed = TimeDistributed(RepeatVector(num_vfeats))(h_out_embed)
 
@@ -140,7 +139,7 @@ def language_model(args_dict,wh,dim,convfeats,prev_words):
             if args_dict.dr:
                 fake_feat = Dropout(args_dict.dr_ratio)(fake_feat)
 
-            fake_feat_embed = Convolution1D(args_dict.emb_dim,1,activation='relu',name='zs_embed',border_mode='same')(fake_feat)
+            fake_feat_embed = Convolution1D(args_dict.emb_dim,1,name='zs_embed',border_mode='same')(fake_feat)
             # reshape for merging with visual feats
             z_s_linear = Reshape((seqlen,1,args_dict.z_dim))(fake_feat)
             z_s_embed = Reshape((seqlen,1,args_dict.emb_dim))(fake_feat_embed)
@@ -168,10 +167,10 @@ def language_model(args_dict,wh,dim,convfeats,prev_words):
         sumpool = Lambda(lambda x: K.sum(x, axis=-2),
                        output_shape=(args_dict.z_dim,))
         c_vec = TimeDistributed(sumpool,name='c_vec')(w_Vi)
-        h = Merge(mode='sum',name='mlp_in')([h_out_linear,c_vec])
+        atten_out = Merge(mode='sum',name='mlp_in')([h_out_linear,c_vec])
+        h = TimeDistributed(Dense(args_dict.emb_dim,activation='tanh'))(atten_out)
         if args_dict.dr:
             h = Dropout(args_dict.dr_ratio,name='mlp_in_tanh_dp')(h)
-        h = TimeDistributed(Dense(args_dict.emb_dim,activation='tanh'))(h)
 
     predictions = TimeDistributed(Dense(num_classes,activation='softmax'),name='out')(h)
 
@@ -216,6 +215,5 @@ if __name__ == "__main__":
 
     parser = get_parser()
     args_dict = parser.parse_args()
-
     model = get_model(args_dict)
     print (model.summary())

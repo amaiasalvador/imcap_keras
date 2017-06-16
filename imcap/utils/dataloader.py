@@ -39,150 +39,32 @@ class DataLoader(object):
     def __init__(self,args_dict):
 
         self.data_folder = args_dict.data_folder
-        self.coco = args_dict.coco_path
         self.h5file = args_dict.h5file
-        self.year = args_dict.year
+        self.json_file = args_dict.json_file
         self.imsize = args_dict.imsize
-        self.seqlen = args_dict.seqlen
-        self.n_caps = args_dict.n_caps
-        self.vocab_size = args_dict.vocab_size
-        self.vfile = args_dict.vfile
-        vocab_file = os.path.join(args_dict.data_folder,'data',self.vfile)
-        self.vocab = pickle.load(open(vocab_file,'rb'))
 
+    def get_splits_and_vocab(self):
+        data = json.load(open(os.path.join(self.data_folder,'data',self.json_file),'r'))
 
-    def get_split(self,partition):
+        splits = {'train':[],'val':[],'test':[]}
+        idxs = {'train':[],'val':[],'test':[]}
 
-        with open('../splits/coco_%s.txt'%(partition),'r') as f:
-            lines = f.readlines()
-            imnames = []
-            for line in lines:
-                imnames.append(line.rstrip())
+        for i,img in enumerate(data['images']):
+            splits[img['split']].append(i)
+            idxs[img['split']].append(img['id'])
 
-        # images in val split that are not used for validation will be
-        # used for training
-
-        return imnames
-    def get_anns(self,partition):
-
-        '''
-        Returns variable 'ims', which contains all image filenames, and
-        'imid2caps', which gives the captions for each image.
-        '''
-
-        # test split comes from validation partition.
-        if partition == 'test' or partition == 'restval':
-            part = 'val'
-        else:
-            part = partition
-
-        json_file = os.path.join(self.coco,'annotations','captions_' + part
-                                + self.year+'.json')
-
-        data = json.load(open(json_file))
-        ims = data['images']
-        anns = data['annotations']
-
-        imname2idx = {}
-        for i,im in enumerate(ims):
-            imname2idx[im['file_name']] = i
-
-        if partition == 'test' or partition == 'val' or partition == 'restval':
-            filenames = self.get_split(partition)
-            ims = [ims[imname2idx[x]] for x in filenames]
-
-        # dictionary mapping image id with the list of N captions for that image
-        imid2caps = {}
-        for item in anns:
-             if item['image_id'] in imid2caps:
-                 imid2caps[item['image_id']].append(item['caption'])
-             else:
-                 imid2caps[item['image_id']] = [item['caption']]
-
-        return ims,imid2caps
-
-    def word2class(self,captions):
-        '''
-        Formats raw captions for an image into sequence of class ids
-        '''
-
-        caption_cls_set = np.zeros((self.n_caps,self.seqlen))
-        for i in range(self.n_caps):
-            # basic sentence formatting, tokenize & lower capital letters
-            caption = captions[i]
-            caption = caption.split('.')[0]
-            tok_caption = nltk.word_tokenize(caption.lower())
-            # seqlen - 1 because of start and end of sequence
-            tok_caption = tok_caption[:self.seqlen-2]
-
-            out_cap = ['<start>']
-            out_cap.extend(tok_caption)
-            out_cap.append('<eos>')
-
-            caption_cls = np.zeros((self.seqlen,))
-            for j,x in enumerate(out_cap):
-                word = self.vocab.get(x)
-                if word:
-                    caption_cls[j] = word
-                else:
-                    caption_cls[j] = self.vocab['<unk>'] # UNK class
-
-            caption_cls_set[i] = caption_cls
-        return caption_cls_set
-
-    def write_hdf5(self):
-
-        '''
-        Reads dataset (images & captions) and stores it in a HDF5 file
-        '''
-
-        with h5py.File(os.path.join(self.data_folder,'data',self.h5file),'w') as f_ds:
-
-            for part in ['restval','train','test','val']:
-                # offline test set included in validation set
-                if part == 'test' or part == 'restval':
-                    ims_path = os.path.join(self.coco,'images','val'+self.year)
-                else:
-                    ims_path = os.path.join(self.coco,'images',part+self.year)
-
-                ims,imid2caps  = self.get_anns(part)
-                nims = len(ims)
-                print "Processing %d samples..."%(nims)
-
-                # image data
-                idata = f_ds.create_dataset('ims_%s'%(part),(nims,
-                                                  self.imsize,self.imsize,3),
-                                                  dtype=np.uint8)
-                # caption data
-                cdata = f_ds.create_dataset('caps_%s'%(part),(nims,self.n_caps,
-                                                            self.seqlen))
-
-
-                for i,im in tqdm(enumerate(ims)):
-                    # get captions for each image
-                    caps = imid2caps[im['id']]
-                    caps_labels = self.word2class(caps)
-
-                    # load and preprocess image (resize + center crop)
-                    filename = im['file_name']
-
-                    img = read_image(os.path.join(ims_path,filename),
-                                    (self.imsize,self.imsize))
-
-                    idata[i,:,:,:] = img
-                    cdata[i,:,:] = caps_labels
-
+        vocab = data['ix_to_word']
+        #vocab_int = {}
+        vocab_int_inv = {}
+        for idx in vocab.keys():
+            #vocab_int[int(idx)] = vocab[idx]
+            vocab_int_inv[vocab[idx]] = int(idx)
+        return splits, idxs, vocab_int_inv
 
     def get_dataset_size(self):
-        '''
-        Returns number of training and validation samples
-        '''
-        train_ims, _ = self.get_anns('train')
-        val_ims, _ = self.get_anns('val')
-        test_ims, _ = self.get_anns('test')
-        rest_val, _ = self.get_anns('restval')
+        splits, _, vocab = self.get_splits_and_vocab()
 
-        return len(train_ims), len(val_ims), len(test_ims), len(rest_val)
+        return len(splits['train']), len(splits['val']), len(splits['test'])
 
     @threadsafe_generator
     def generator(self,partition,batch_size,train_flag=True):
@@ -190,20 +72,25 @@ class DataLoader(object):
         '''
         Generator function to yield batches for training & testing the network
         '''
-
-        imlist,_ = self.get_anns(partition)
+        splits, image_ids, vocab = self.get_splits_and_vocab()
+        sample_list = splits[partition]
+        image_ids = image_ids[partition]
+        vocab_size = len(vocab.keys())
 
         data = h5py.File(os.path.join(self.data_folder,'data',self.h5file),'r')
-        ims = data['ims_%s'%(partition)]
-        caps = data['caps_%s'%(partition)]
+        ims = data['images']
+        caps = data['labels']
+        starts = data['label_start_ix']
+        ends = data['label_end_ix']
+        labels_length = data['label_length']
 
-        idxs = np.array(range(len(imlist)))
+        idxs = np.array(range(len(sample_list)))
 
         # batches need to have same number of samples (due to stateful rnn)
         # note that some samples will be left out but they will change at each
         # epoch due to shuffling
 
-        rng = int(np.floor(len(imlist)/batch_size))
+        rng = int(np.floor(len(sample_list)/batch_size))
 
         while True:
 
@@ -213,51 +100,59 @@ class DataLoader(object):
 
             for i in range(rng):
 
-                # adjust batch size at the end
-                # note: currently we never fall into the else condition here
-                if i*batch_size + batch_size > len(imlist):
-                    bs = len(imlist) - i*batch_size
-                    sample_ids = idxs[i*batch_size:]
-                else:
-                    bs = batch_size
-                    sample_ids = idxs[i*bs:i*bs+bs]
-
+                sample_ids = idxs[i*batch_size:i*batch_size+batch_size]
                 # idxs need to be in ascending order
                 batch_idxs = np.sort(sample_ids)
+                batch_idxs = batch_idxs.tolist()
 
+                # load samples to compose batch
+                ### images ###
                 batch_ims = ims[batch_idxs,:,:,:]
                 batch_ims = batch_ims.astype(np.float64)
 
+                # batch_size, width,height,3
+                batch_ims = np.rollaxis(batch_ims,-1,1)
+                batch_ims = np.rollaxis(batch_ims,-1,1)
+
                 # handle case where batch_size = 1
-                batch_ims = np.reshape(batch_ims,(bs,self.imsize,self.imsize,3))
+                batch_ims = np.reshape(batch_ims,(batch_size,self.imsize,self.imsize,3))
                 batch_ims = preprocess_input(batch_ims)
 
-                # load captions
+                ### load captions ###
+                label_start_ixs = starts[batch_idxs]
+                label_end_ixs = ends[batch_idxs]
+
                 # random caption id out of 5 possible ones if training
                 if train_flag:
-                    cap_id = random.randint(0,self.n_caps-1)
+                    cap_id = np.zeros((batch_size,))
+                    # select random caption out of available ones for that image
+                    for ix in range(batch_size):
+                        cap_id[ix] = random.randint(label_start_ixs[ix]-1,label_end_ixs[ix]-1)
                 else:
-                    cap_id = 0
-                prev_caps = caps[batch_idxs,cap_id,:]
-                prev_caps = np.reshape(prev_caps,(bs,self.seqlen))
+                    # take first caption
+                    cap_id = label_start_ixs - 1
+                cap_id = cap_id.tolist()
+                label_length = labels_length[cap_id]
+                prev_caps = caps[cap_id,:]
+                seqlen = np.shape(prev_caps)[-1]
+                prev_caps = np.reshape(prev_caps,(batch_size,seqlen))
 
                 # vector of previous words is simply a shifted version of
                 # current words vector
-                batch_caps = np.zeros((bs,self.seqlen))
+                batch_caps = np.zeros((batch_size,seqlen))
                 batch_caps[:,:-1] = prev_caps[:,1:]
 
                 # words with 0 id are padded out
-                sample_weight = np.zeros((bs,self.seqlen))
+                sample_weight = np.zeros((batch_size,seqlen))
                 sample_weight[batch_caps>0] = 1
 
                 # for current words (to be predicted), we need to pass one-hot vecs
-                batch_caps = to_categorical(batch_caps,self.vocab_size)
-                batch_caps = np.reshape(batch_caps,(bs,self.seqlen,
-                                        self.vocab_size))
+                batch_caps = to_categorical(batch_caps,vocab_size+1)
+                batch_caps = np.reshape(batch_caps,(batch_size,seqlen,vocab_size+1))
 
                 # during testing we don't return previous words(they will be
                 # generated instead), and return image ids.
                 if train_flag:
                     yield [batch_ims,prev_caps],batch_caps,sample_weight
                 else:
-                    yield [batch_ims,prev_caps],batch_caps,sample_weight, np.array(imlist)[batch_idxs]
+                    yield [batch_ims,prev_caps],batch_caps,sample_weight, np.array(image_ids)[batch_idxs]

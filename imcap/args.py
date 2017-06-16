@@ -8,33 +8,29 @@ def get_parser():
     parser.add_argument('-model_name', dest='model_name',
                         default = 'model',help='Base name to save model')
     parser.add_argument('-h5file', dest='h5file',
-                        default = 'dataset.h5',
+                        default = 'cocotalk_challenge.h5',
                         help='name of hdf5 file (with extension)')
-    parser.add_argument('-vfile', dest='vfile',
-                        default = 'vocab.pkl',
-                        help='name of vocab file (with extension)')
+    parser.add_argument('-json_file', dest='json_file',
+                        default = 'cocotalk_challenge.json',
+                        help='name of json file (with extension)')
     parser.add_argument('-model_file', dest='model_file',
                         default = None,help='path to model file to load (either for testing or snapshooting).')
     # data-related
     parser.add_argument('-coco_path', dest='coco_path',
                         default = '/seq/segmentation/COCO/tools',
                         help='COCO database')
-    parser.add_argument('-year', dest='year',
-                        default = '2014',help='COCO year')
     parser.add_argument('-data_folder', dest='data_folder',
                         default = '/work/asalvador/sat_keras/',
                         help='save folder')
-    parser.add_argument('-min_occ',dest='min_occ', default = 3,
-                        help='Min number of occurrences to use a word',type=int)
 
     # model parts, inputs
     parser.add_argument('-cnn', dest='cnn',
                         default = 'resnet', choices=['vgg16','vgg19','resnet'],
                         help='Pretrained CNN to use')
     parser.add_argument('-imsize', dest='imsize',
-                        default = 224, help='Image size',type=int)
+                        default = 256, help='Image size',type=int)
     parser.add_argument('-vocab_size', dest='vocab_size',
-                        default = 10000, help='Vocabulary size' ,type=int)
+                        default = 9570, help='Vocabulary size' ,type=int)
     parser.add_argument('-n_caps', dest='n_caps',
                         default = 5, help='Number of captions for training',
                         type=int)
@@ -59,12 +55,12 @@ def get_parser():
     # Training params
     parser.add_argument('-seed', dest='seed',
                         default = 123, help='Random seed',type=int)
-    parser.add_argument('-bs',dest='bs', default = 64,
+    parser.add_argument('-bs',dest='bs', default = 32,
                             help='Batch Size',type=int)
     parser.add_argument('-optim',dest='optim', default ='adam',
                                 choices=['adam','SGD','adadelta','adagrad',
                                 'rmsprop'], help='Optimizer')
-    parser.add_argument('-alpha',dest='alpha', default = 0.8,
+    parser.add_argument('-alpha',dest='alpha', default = 0.9,
                                 help='Adams alpha',type=float)
     parser.add_argument('-beta',dest='beta', default = 0.999,
                                 help='Adams beta',type=float)

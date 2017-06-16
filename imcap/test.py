@@ -11,7 +11,7 @@ import json
 import time
 from keras import backend as K
 from keras.layers import Input
-
+import json
 
 parser = get_parser()
 args_dict = parser.parse_args()
@@ -24,9 +24,13 @@ weights = args_dict.model_file
 model.load_weights(weights)
 model.compile(optimizer=opt,loss='categorical_crossentropy')
 
-vocab_file = os.path.join(args_dict.data_folder,'data',args_dict.vfile)
-vocab = pickle.load(open(vocab_file,'rb'))
-inv_vocab = {v:k for k,v in vocab.items()}
+# load vocab to convert captions to words and compute cider
+data = json.load(open(os.path.join(args_dict.data_folder,'data',args_dict.json_file),'r'))
+vocab_src = data['ix_to_word']
+inv_vocab = {}
+for idx in vocab.keys():
+    inv_vocab[int(idx)] = vocab_src[idx]
+vocab = {v:k for k,v in inv_vocab.items()}
 
 dataloader = DataLoader(args_dict)
 N_train, N_val, N_test, _ = dataloader.get_dataset_size()

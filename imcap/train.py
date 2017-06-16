@@ -67,13 +67,12 @@ def get_metric(args_dict,results_file,ann_file):
 
     return cocoEval.eval[args_dict.es_metric]
 
-def trainloop(args_dict,model,suff_name='',model_val=None):
+def trainloop(args_dict,model,suff_name='',model_val=None,epoch_start = 0):
 
     ## DataLoaders
     dataloader = DataLoader(args_dict)
-    N_train, N_val, _, N_restval = dataloader.get_dataset_size()
+    N_train, N_val, N_test = dataloader.get_dataset_size()
     train_gen = dataloader.generator('train',args_dict.bs)
-    restval_gen = dataloader.generator('restval',args_dict.bs)
     val_gen = dataloader.generator('val',args_dict.bs)
 
     if args_dict.es_metric == 'loss':
@@ -107,17 +106,20 @@ def trainloop(args_dict,model,suff_name='',model_val=None):
         val_gen_test = dataloader.generator('val',args_dict.bs,train_flag=False)
 
         # load vocab to convert captions to words and compute cider
-        vocab_file = os.path.join(args_dict.data_folder,'data',args_dict.vfile)
-        vocab = pickle.load(open(vocab_file,'rb'))
-        inv_vocab = {v:k for k,v in vocab.items()}
+        data = json.load(open(os.path.join(args_dict.data_folder,'data',args_dict.json_file),'r'))
+        vocab_src = data['ix_to_word']
+        inv_vocab = {}
+        for idx in vocab_src.keys():
+            inv_vocab[int(idx)] = vocab_src[idx]
+        vocab = {v:k for k,v in inv_vocab.items()}
 
         # init waiting param and best metric values
         wait = 0
         best_metric = -np.inf
 
         for e in range(args_dict.nepochs):
-            print "Epoch %d/%d"%(e+1,args_dict.nepochs)
-            prog = Progbar(target = N_train + N_restval)
+            print "Epoch %d/%d"%(e+1 + epoch_start,args_dict.nepochs + epoch_start)
+            prog = Progbar(target = N_train)
 
             samples = 0
             for x,y,sw in train_gen: # do one epoch
@@ -127,16 +129,6 @@ def trainloop(args_dict,model,suff_name='',model_val=None):
                 if samples >= N_train:
                     break
                 prog.update(current= samples ,values = [('loss',loss)])
-
-            # non used validation samples as training as well
-            for x,y,sw in restval_gen:
-                loss = model.train_on_batch(x=x,y=y,sample_weight=sw)
-                model.reset_states()
-                samples+=args_dict.bs
-                if samples >= N_train + N_restval:
-                    break
-                prog.update(current= samples ,values = [('loss',loss)])
-
 
             # forward val images to get loss
             samples = 0
@@ -165,7 +157,7 @@ def trainloop(args_dict,model,suff_name='',model_val=None):
                                     'annotations/captions_val2014.json')
             # score captions and return requested metric
             metric = get_metric(args_dict,results_file,ann_file)
-            prog.update(current= N_train + N_restval,
+            prog.update(current= N_train,
                         values = [('loss',loss),('val_loss',np.mean(val_losses)),
                                   (args_dict.es_metric,metric)])
 
@@ -224,9 +216,12 @@ if __name__ == "__main__":
 
         model, model_val = init_models(args_dict)
         model, model_name = trainloop(args_dict,model,model_val = model_val)
+        epoch_start = args_dict.nepochs
 
         del model
         K.clear_session()
+    else:
+        epoch_start = 0
 
     ### Fine Tune ConvNet ###
     # get fine tuning params in place
@@ -253,4 +248,4 @@ if __name__ == "__main__":
     model_val.compile(optimizer=opt,loss='categorical_crossentropy',
                       sample_weight_mode="temporal")
     args_dict.mode = 'train'
-    model,model_name = trainloop(args_dict,model,suff_name='_cnn_train',model_val = model_val)
+    model,model_name = trainloop(args_dict,model,suff_name='_cnn_train',model_val = model_val,epoch_start = epoch_start)

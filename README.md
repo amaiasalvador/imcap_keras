@@ -61,7 +61,14 @@ $coco/images/train2014                    # train image dir
 $coco/images/val2014                      # ...
 ```
 
-- Prepare data with ```python setup.py -coco_path path/to/coco/dataset```. This involves loading and formatting images and captions to be stored in a single h5 file.
+- Navigate to ```imcap/utils``` and run:
+
+```
+python prepro_coco.py --output_json path_to_json --output_h5 path_to_h5 --images_root path_to_coco_images
+``` 
+
+	this will create the vocabulary and HDF5 file with data.
+	
 - [Coming soon] Download pretrained model [here]().
 
 ## Usage
@@ -88,8 +95,7 @@ Run ```python train.py```. Run ```python args.py --help``` for a list of the ava
   
 ### Note on used train/val/test splits
 
-For the sake of comparison, data splits have been taken from the [original source code](https://github.com/kelvinxu/arctic-captions) of [Show, Attend and Tell: Neural Image Caption Generation with Visual Attention](http://arxiv.org/abs/1502.03044).
-
+For the sake of comparison, the data processing script follows the one in [NeuralTalk2](https://github.com/karpathy/neuraltalk2) and [AdaptiveAttention](https://github.com/jiasenlu/AdaptiveAttention).
 ## References
 
 - Xu et al. [Show, Attend and Tell: Neural Image Caption Generation with Visual Attention.](http://www.jmlr.org/proceedings/papers/v37/xuc15.pdf) ICML 2015.
