@@ -1,4 +1,4 @@
-**Work in progress**
+**Disclaimer: I am not working on this anymore. I will be happy to answer questions and review & merge PRs though.**
 # Image Captioning with Spatial Attention in Keras
 
 This is a Keras & Tensorflow implementation of a captioning model. In particular, it uses the attention models described in [this](https://arxiv.org/abs/1612.01887) paper, which is depicted below:
